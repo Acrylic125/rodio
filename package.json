@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.2",
+    "@tanstack/react-router": "^1.31.4",
+    "@tanstack/router-cli": "^1.30.0",
     "@tauri-apps/api": "^1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -21,6 +23,8 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@tanstack/router-devtools": "^1.31.4",
+    "@tanstack/router-vite-plugin": "^1.30.0",
     "@tauri-apps/cli": "^1",
     "@types/node": "^20.12.7",
     "@types/react": "^18.2.15",
