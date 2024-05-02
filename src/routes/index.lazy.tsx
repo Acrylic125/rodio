@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { Link, createLazyFileRoute } from "@tanstack/react-router";
 
 export const Route = createLazyFileRoute("/")({
   component: Index,
@@ -33,12 +33,14 @@ function Index() {
                 Data labeling tool.
               </p>
             </div>
-            <Button
-              className="w-full text-left justify-start px-4 py-2 mdLpx-4 md:py-4 lg:px-6 lg:py-6"
-              variant="outline"
-            >
-              New Project
-            </Button>
+            <Link to="/new-project">
+              <Button
+                className="w-full text-left justify-start px-4 py-2 mdLpx-4 md:py-4 lg:px-6 lg:py-6"
+                variant="outline"
+              >
+                New Project
+              </Button>
+            </Link>
           </div>
         </section>
         <section className="w-full flex flex-col p-4 md:p-8 lg:p-12 pl-0 md:pl-0 lg:pl-0">
