@@ -1,4 +1,4 @@
-import { Link, createLazyFileRoute } from "@tanstack/react-router";
+import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,12 +9,17 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { invoke } from "@tauri-apps/api";
+
+// readDir("");
 
 export const Route = createLazyFileRoute("/new-project")({
   component: NewProject,
 });
 
 function NewProject() {
+  const navigate = useNavigate({ from: "/new-project" });
+
   return (
     <main className="flex flex-col items-center bg-background w-screen h-svh">
       <section className="w-full h-full flex flex-col gap-4 md:gap-8 lg:gap-12 max-w-screen-xl p-4 md:p-8 lg:p-12">
@@ -36,7 +41,19 @@ function NewProject() {
             New Project
           </h1>
         </div>
-        <form className="flex flex-col gap-4 md:gap-8 lg:gap-12">
+        <form
+          className="flex flex-col gap-4 md:gap-8 lg:gap-12"
+          onSubmit={(e) => {
+            e.preventDefault();
+            invoke("hello_world", { name: "World" })
+              // `invoke` returns a Promise
+              .then((response) => console.log(response));
+            navigate({
+              to: "/project/$path",
+              params: { path: "helloworld" },
+            });
+          }}
+        >
           <div className="flex flex-col gap-2 md:gap-4 lg:gap-6">
             <label className="flex flex-col gap-2">
               <p>Project Name</p>
