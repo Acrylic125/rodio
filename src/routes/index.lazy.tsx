@@ -33,18 +33,27 @@ function Index() {
                 Data labeling tool.
               </p>
             </div>
-            <Link to="/new-project">
+            <div className="flex flex-col gap-2 md:gap-4">
+              <Link to="/new-project">
+                <Button
+                  className="w-full text-left justify-start px-4 py-2 mdLpx-4 md:py-4 lg:px-6 lg:py-6"
+                  variant="outline"
+                >
+                  New Project
+                </Button>
+              </Link>
               <Button
                 className="w-full text-left justify-start px-4 py-2 mdLpx-4 md:py-4 lg:px-6 lg:py-6"
                 variant="outline"
               >
-                New Project
+                Load Existing Project
               </Button>
-            </Link>
+            </div>
           </div>
         </section>
         <section className="w-full flex flex-col p-4 md:p-8 lg:p-12 pl-0 md:pl-0 lg:pl-0">
           <ul className="flex flex-col w-full h-full border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 p-2 md:p-4 lg:p-6 rounded-md gap-1 md:gap-2 lg:gap-4">
+            <h2 className="text-gray-500 font-medium">RECENTLY OPENED</h2>
             {projects.length > 0 ? (
               projects.map((project) => (
                 <li
