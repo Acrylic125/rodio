@@ -17,9 +17,11 @@
     "@tauri-apps/api": "^1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "konva": "^9.3.6",
     "lucide-react": "^0.376.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-konva": "^18.2.10",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "valibot": "^0.30.0"
