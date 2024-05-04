@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
@@ -11,6 +12,9 @@ export default defineConfig(async () => ({
     TanStackRouterVite(),
     ViteImageOptimizer({
       /* pass your config */
+    }),
+    nodePolyfills({
+      include: ["path"],
     }),
   ],
 
