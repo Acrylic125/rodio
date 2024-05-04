@@ -12,11 +12,12 @@ import {
   KonvaNodeComponent,
 } from "react-konva";
 
+type Pos = { x: number; y: number };
 type Label = {
   id: string;
   class: string;
-  start: [number, number];
-  end: [number, number];
+  start: Pos;
+  end: Pos;
 };
 
 function Anchor({
@@ -45,31 +46,29 @@ function Anchor({
 
 function LabelBox({
   isSelected,
+  id,
   onRequestSelect,
-  label,
+  onResize,
   containerDimensions,
+  defaultStartPos,
+  defaultEndPos,
 }: {
   isSelected: boolean;
-  onRequestSelect: () => void;
-  label: Label;
+  id: string;
+  onRequestSelect: (id: string) => void;
+  onResize: (id: string, start: Pos, end: Pos) => void;
   containerDimensions: { width: number; height: number };
+  // Resync position with defaults by updating the key of the component.
+  defaultStartPos: Pos;
+  defaultEndPos: Pos;
 }) {
   const ref = useRef<RectType | null>(null);
   const transformerRef = useRef<TransformerType | null>(null);
-  const [startPos, setStartPos] = useState<{
-    x: number;
-    y: number;
-  }>({
-    x: 0,
-    y: 0,
-  });
-  const [endPos, setEndPos] = useState<{
-    x: number;
-    y: number;
-  }>({
-    x: 0.2,
-    y: 0.2,
-  });
+  const [startPos, setStartPos] = useState<Pos>(defaultStartPos);
+  const [endPos, setEndPos] = useState<Pos>(defaultEndPos);
+  const _onRequestSelect = useCallback(() => {
+    onRequestSelect(id);
+  }, [onRequestSelect, id]);
 
   useEffect(() => {
     if (!ref.current || !transformerRef.current) return;
@@ -78,8 +77,74 @@ function LabelBox({
     transformerRef.current.getLayer()?.batchDraw();
   }, [ref.current, transformerRef.current, isSelected]);
 
+  const handleDrag = (
+    e: KonvaEventObject<DragEvent>,
+    triggerOnResize: boolean
+  ) => {
+    const pos = e.target.position();
+    const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
+    const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
+
+    const start = {
+      x: Math.min(Math.max(pos.x, 0), containerDimensions.width - width),
+      y: Math.min(Math.max(pos.y, 0), containerDimensions.height - height),
+    };
+    const newStartPos = {
+      x: start.x / containerDimensions.width,
+      y: start.y / containerDimensions.height,
+    };
+    const newEndPos = {
+      x: (start.x + width) / containerDimensions.width,
+      y: (start.y + height) / containerDimensions.height,
+    };
+
+    e.target.position(start);
+    setStartPos(newStartPos);
+    setEndPos(newEndPos);
+    if (triggerOnResize) {
+      onResize(id, newStartPos, newEndPos);
+    }
+  };
+  const handleTransform = (triggerOnResize: boolean) => {
+    const node = ref.current;
+    if (!node) return;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+
+    node.scaleX(1);
+    node.scaleY(1);
+    // console.log(`${node.width()}, ${node.height()}`);
+    const width = Math.max(node.width() * scaleX, 1);
+    const height = Math.max(node.height() * scaleY, 1);
+
+    const start = {
+      x: node.x(),
+      y: node.y(),
+    };
+    setStartPos({
+      x: Math.max(Math.min(start.x / containerDimensions.width, 1), 0),
+      y: Math.max(Math.min(start.y / containerDimensions.height, 1), 0),
+    });
+    setEndPos({
+      x: Math.max(
+        Math.min((start.x + width) / containerDimensions.width, 1),
+        0
+      ),
+      y: Math.max(
+        Math.min((start.y + height) / containerDimensions.height, 1),
+        0
+      ),
+    });
+    if (triggerOnResize) {
+      onResize(id, start, {
+        x: start.x + width,
+        y: start.y + height,
+      });
+    }
+  };
+
   return (
-    <Group onTap={onRequestSelect} onMouseDown={onRequestSelect}>
+    <Group onTap={_onRequestSelect} onMouseDown={_onRequestSelect}>
       {/* <Rect /> */}
       <Rect
         x={startPos.x * containerDimensions.width}
@@ -91,63 +156,10 @@ function LabelBox({
         strokeWidth={4}
         draggable
         ref={ref}
-        onDragMove={(e) => {
-          const pos = e.target.position();
-          const width =
-            Math.abs(endPos.x - startPos.x) * containerDimensions.width;
-          const height =
-            Math.abs(endPos.y - startPos.y) * containerDimensions.height;
-
-          const start = {
-            x: Math.min(Math.max(pos.x, 0), containerDimensions.width - width),
-            y: Math.min(
-              Math.max(pos.y, 0),
-              containerDimensions.height - height
-            ),
-          };
-          const newStartPos = {
-            x: start.x / containerDimensions.width,
-            y: start.y / containerDimensions.height,
-          };
-
-          e.target.position(start);
-          setStartPos(newStartPos);
-          setEndPos({
-            x: (start.x + width) / containerDimensions.width,
-            y: (start.y + height) / containerDimensions.height,
-          });
-        }}
-        onTransform={() => {
-          const node = ref.current;
-          if (!node) return;
-          const scaleX = node.scaleX();
-          const scaleY = node.scaleY();
-
-          node.scaleX(1);
-          node.scaleY(1);
-          // console.log(`${node.width()}, ${node.height()}`);
-          const width = Math.max(node.width() * scaleX, 1);
-          const height = Math.max(node.height() * scaleY, 1);
-
-          const start = {
-            x: node.x(),
-            y: node.y(),
-          };
-          setStartPos({
-            x: Math.max(Math.min(start.x / containerDimensions.width, 1), 0),
-            y: Math.max(Math.min(start.y / containerDimensions.height, 1), 0),
-          });
-          setEndPos({
-            x: Math.max(
-              Math.min((start.x + width) / containerDimensions.width, 1),
-              0
-            ),
-            y: Math.max(
-              Math.min((start.y + height) / containerDimensions.height, 1),
-              0
-            ),
-          });
-        }}
+        onDragEnd={(e) => handleDrag(e, true)}
+        onDragMove={(e) => handleDrag(e, false)}
+        onTransformEnd={() => handleTransform(false)}
+        onTransform={() => handleTransform(false)}
       />
       {isSelected && (
         <Transformer
@@ -181,8 +193,14 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
       temp.set(i.toString(), {
         id: i.toString(),
         class: "1",
-        start: [0, 0],
-        end: [0.3, 0.3],
+        start: {
+          x: 0.1,
+          y: 0.1,
+        },
+        end: {
+          x: 0.3,
+          y: 0.3,
+        },
       });
     }
     return temp;
@@ -206,7 +224,6 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
     if (imgAspectRatio < containerAspectRatio) {
       const padX = (size.height * imgAspectRatio - size.width) / -2;
       size.width = size.width - padX * 2;
-      console.log(`PadX ${padX} ${size.width} ${size.height}`);
     }
     // Otherwise,
     // (wH - Wh) / 2w = y
@@ -215,7 +232,7 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
         (target.naturalWidth * size.height -
           size.width * target.naturalHeight) /
         (2 * target.naturalWidth);
-      size.height = size.width + padY * 2;
+      size.height = size.height - padY * 2;
     }
     setImageContainerSize(size);
   }, []);
@@ -246,6 +263,22 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
     },
     [setFocusedLabel]
   );
+  const onResize = useCallback(
+    (id: string, start: Pos, end: Pos) => {
+      setLabels((prev) => {
+        const newLabels = new Map(prev);
+        const label = newLabels.get(id);
+        if (!label) return newLabels;
+        newLabels.set(id, {
+          ...label,
+          start,
+          end,
+        });
+        return newLabels;
+      });
+    },
+    [setLabels]
+  );
 
   return (
     <>
@@ -253,9 +286,9 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
         src={convertFileSrc(currentPath)}
         loading="lazy"
         alt="test"
-        // className="w-full h-full object-fill"
-        className="w-full h-full object-contain"
+        className="w-full h-full object-contain select-none"
         ref={imageRef}
+        draggable={false}
         onLoad={(e) => {
           if (!(e.target instanceof HTMLImageElement)) return;
           updateContainerSize(e.target);
@@ -273,12 +306,13 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
             return (
               <LabelBox
                 key={label.id}
+                id={label.id}
                 isSelected={focuusedLabel === label.id}
-                onRequestSelect={() => {
-                  setFocusedLabel(label.id);
-                }}
-                label={label}
+                onRequestSelect={setFocusedLabel}
+                onResize={onResize}
                 containerDimensions={imageContainerSize}
+                defaultStartPos={label.start}
+                defaultEndPos={label.end}
               />
             );
           })}
