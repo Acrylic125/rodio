@@ -79,23 +79,9 @@ function LabelBox({
   }, [ref.current, transformerRef.current, isSelected]);
 
   return (
-    <Group
-      onTap={() => {
-        onRequestSelect();
-      }}
-      onMouseDown={() => {
-        onRequestSelect();
-      }}
-    >
+    <Group onTap={onRequestSelect} onMouseDown={onRequestSelect}>
       {/* <Rect /> */}
       <Rect
-        // x={x}
-        // y={y}
-        // width={width}
-        // height={height}
-        // width={100}
-        // height={100}
-
         x={startPos.x * containerDimensions.width}
         y={startPos.y * containerDimensions.height}
         width={Math.abs(endPos.x - startPos.x) * containerDimensions.width}
@@ -201,15 +187,54 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
     }
     return temp;
   });
+  const updateContainerSize = useCallback((target: HTMLImageElement) => {
+    const bb = target.getBoundingClientRect();
+    const size = {
+      width: bb.width,
+      height: bb.height,
+    };
+    const imgAspectRatio = target.naturalWidth / target.naturalHeight;
+    const containerAspectRatio = size.width / size.height;
+    // W = container width
+    // H = container height
+    // w = image width
+    // h = image height
+    // IMPORTANT! The image resolution DOES NOT EQUAL TO THE space used by the image element.
+
+    // If w/h < W/H, then we have to add padding, x, to the width
+    // (Hw/h - W) / -2 = x
+    if (imgAspectRatio < containerAspectRatio) {
+      const padX = (size.height * imgAspectRatio - size.width) / -2;
+      size.width = size.width - padX * 2;
+      console.log(`PadX ${padX} ${size.width} ${size.height}`);
+    }
+    // Otherwise,
+    // (wH - Wh) / 2w = y
+    else {
+      const padY =
+        (target.naturalWidth * size.height -
+          size.width * target.naturalHeight) /
+        (2 * target.naturalWidth);
+      size.height = size.width + padY * 2;
+    }
+    setImageContainerSize(size);
+  }, []);
 
   useEffect(() => {
     if (!imageRef.current) return;
-    const resizeObserver = new ResizeObserver((entry) => {
-      const size = entry[0].contentRect;
-      setImageContainerSize(size);
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+
+      const target = entry.target;
+      if (!(target instanceof HTMLImageElement)) return;
+      updateContainerSize(target);
+      // console.log(
+      //   `Natural: ${target.naturalWidth} ${target.naturalHeight} (${target.naturalWidth / target.naturalHeight}) Normal: ${size.width} ${size.height} (${size.width / size.height})`
+      // );
+      // setImageContainerSize(size);
     });
     resizeObserver.observe(imageRef.current);
-  }, [imageRef.current]);
+  }, [imageRef.current, updateContainerSize]);
   const deselectCheck = useCallback(
     (e: KonvaEventObject<MouseEvent> | KonvaEventObject<TouchEvent>) => {
       {
@@ -228,28 +253,23 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
         src={convertFileSrc(currentPath)}
         loading="lazy"
         alt="test"
+        // className="w-full h-full object-fill"
         className="w-full h-full object-contain"
         ref={imageRef}
+        onLoad={(e) => {
+          if (!(e.target instanceof HTMLImageElement)) return;
+          updateContainerSize(e.target);
+        }}
       />
       <Stage
         width={imageContainerSize.width}
         height={imageContainerSize.height}
-        className="top-0 left-0 absolute"
+        className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 absolute"
         onMouseDown={deselectCheck}
         onTouchStart={deselectCheck}
       >
         <Layer>
           {Array.from(labels.values()).map((label) => {
-            const [x, y] = [
-              label.start[0] * imageContainerSize.width,
-              label.start[1] * imageContainerSize.height,
-            ];
-            // console.log(x, y);
-            const [width, height] = [
-              (label.end[0] - label.start[0]) * imageContainerSize.width,
-              (label.end[1] - label.start[1]) * imageContainerSize.height,
-            ];
-
             return (
               <LabelBox
                 key={label.id}
