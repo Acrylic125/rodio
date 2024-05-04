@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { invoke } from "@tauri-apps/api";
+import { createDir } from "@tauri-apps/api/fs";
 
 // readDir("");
 
@@ -27,9 +28,9 @@ function NewProject() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <Link to="/">
-                  <BreadcrumbLink>Home</BreadcrumbLink>
-                </Link>
+                <BreadcrumbLink asChild>
+                  <Link to="/">Home</Link>
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -68,9 +69,9 @@ function NewProject() {
             </label>
           </div>
           <div className="flex flex-row gap-2">
-            <Link to="/">
-              <Button variant="outline">Cancel</Button>
-            </Link>
+            <Button asChild variant="outline">
+              <Link to="/">Cancel</Link>
+            </Button>
             <Button type="submit">Create</Button>
           </div>
         </form>
