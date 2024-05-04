@@ -80,7 +80,10 @@ function LabelBox({
 
   return (
     <Group
-      onClick={() => {
+      onTap={() => {
+        onRequestSelect();
+      }}
+      onMouseDown={() => {
         onRequestSelect();
       }}
     >
@@ -101,27 +104,6 @@ function LabelBox({
         stroke="#ff0000"
         strokeWidth={4}
         draggable
-        // onDragEnd={(e) => {
-        //   const pos = e.target.getPosition();
-        //   const start: [number, number] = [
-        //     Math.max(pos.x / imageContainerSize.width, 0),
-        //     Math.max(pos.y / imageContainerSize.height, 0),
-        //   ];
-        //   e.target.setPosition({ x: start[0], y: start[1] });
-        //   setLabels((prev) => {
-        //     const temp = new Map(prev);
-        //     temp.set(label.id, {
-        //       ...label,
-        //       start: start,
-        //       end: [
-        //         (start[0] + width) / imageContainerSize.width,
-        //         (start[1] + height) / imageContainerSize.height,
-        //       ],
-        //     });
-        //     return temp;
-        //   });
-        // }}
-        // dragBoundFunc={}
         ref={ref}
         onDragMove={(e) => {
           const pos = e.target.position();
@@ -157,8 +139,9 @@ function LabelBox({
 
           node.scaleX(1);
           node.scaleY(1);
-          const width = node.width() * scaleX;
-          const height = node.height() * scaleY;
+          // console.log(`${node.width()}, ${node.height()}`);
+          const width = Math.max(node.width() * scaleX, 1);
+          const height = Math.max(node.height() * scaleY, 1);
 
           const start = {
             x: node.x(),
@@ -185,6 +168,14 @@ function LabelBox({
           ref={transformerRef}
           rotateEnabled={false}
           flipEnabled={false}
+          // anchorDragBoundFunc={(oldPos, newPos) => {
+          //   console.log(newPos);
+          //   return {
+          //     x: Math.max(Math.min(newPos.x, containerDimensions.width), 0),
+          //     // y: 0,
+          //     y: Math.max(Math.min(newPos.y, containerDimensions.height), 0),
+          //   };
+          // }}
         />
       )}
     </Group>
