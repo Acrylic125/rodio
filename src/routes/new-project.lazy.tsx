@@ -17,6 +17,7 @@ import path from "path";
 import { Loader2 } from "lucide-react";
 import { isValidFilepath } from "@/lib/file";
 import { RodioProject } from "@/lib/rodio";
+import { resolveError } from "@/lib/utils";
 
 // readDir("");
 type CreateProjectErrors = {
@@ -34,7 +35,7 @@ function shouldUseProjectNameAsBasename(_path: string, projectName: string) {
 }
 
 function NewProject() {
-  // const navigate = useNavigate({ from: "/new-project" });
+  const navigate = useNavigate({ from: "/new-project" });
   const createProjectMut = useMutation({
     mutationFn: async ({
       path,
@@ -52,8 +53,11 @@ function NewProject() {
         }
     > => {
       let errors: CreateProjectErrors = {};
-      if (name === "") {
+      const trimmedName = name.trim();
+      if (trimmedName === "") {
         errors.projectName = "Project name is required";
+      } else if (name.length > 32) {
+        errors.projectName = "Project name is too long (Max 32 characters";
       }
 
       const project = new RodioProject(path);
@@ -76,9 +80,16 @@ function NewProject() {
         };
       }
       await project.init();
+      navigate({
+        to: "/project/$path",
+        params: { path: encodeURIComponent(path) },
+      });
       return {
         state: "valid",
       };
+    },
+    onError: (error) => {
+      console.error(typeof error);
     },
   });
   const [projectName, setProjectName] = useState("");
@@ -117,10 +128,6 @@ function NewProject() {
               path: projectPath,
               name: projectName,
             });
-            // navigate({
-            //   to: "/project/$path",
-            //   params: { path: "helloworld" },
-            // });
           }}
         >
           <div className="flex flex-col gap-2 md:gap-4 lg:gap-6">
@@ -160,7 +167,6 @@ function NewProject() {
                   </p>
                 )}
             </label>
-            <div></div>
             <label className="flex flex-col gap-2">
               <p>Project Path</p>
               <div className="w-full flex flex-row gap-2">
@@ -221,16 +227,19 @@ function NewProject() {
           </div>
           {createProjectMut.error && (
             <p className="w-full bg-red-200 dark:bg-red-300 border-2 border-red-400 dark:border-red-500 text-red-500 dark:text-red-500 p-2 md:p-4 rounded-md">
-              {createProjectMut.error instanceof Error
-                ? createProjectMut.error.message
-                : "An error occurred"}
+              {resolveError(createProjectMut.error)}
             </p>
           )}
           <div className="flex flex-row gap-2">
             <Button type="button" asChild variant="outline">
               <Link to="/">Cancel</Link>
             </Button>
-            <Button type="submit" disabled={createProjectMut.isPending}>
+            <Button
+              type="submit"
+              disabled={
+                createProjectMut.isPending || createProjectMut.isSuccess
+              }
+            >
               {createProjectMut.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
