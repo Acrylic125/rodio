@@ -14,7 +14,9 @@ type Options = {
 export function isValidFilepath(filepath: string, options: Options = {}) {
   if (filepath === "") return true;
 
-  if (!navigator.userAgent.indexOf("Win")) return true;
+  if (navigator.userAgent.indexOf("Win") === -1) {
+    return true;
+  }
 
   // https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
   const MAX_PATH = options.extended ? 32767 : 260;
