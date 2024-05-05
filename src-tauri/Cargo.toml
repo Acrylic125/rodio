@@ -11,12 +11,29 @@ edition = "2021"
 tauri-build = { version = "1", features = [] }
 
 [dependencies]
-tauri = { version = "1", features = [ "path-all", "fs-remove-file", "fs-read-dir", "fs-exists", "fs-read-file", "fs-write-file", "fs-create-dir", "fs-rename-file", "protocol-asset", "dialog-all", "shell-open"] }
+tauri = { version = "1", features = [
+    "path-all",
+    "fs-remove-file",
+    "fs-read-dir",
+    "fs-exists",
+    "fs-read-file",
+    "fs-write-file",
+    "fs-create-dir",
+    "fs-rename-file",
+    "protocol-asset",
+    "dialog-all",
+    "shell-open",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 specta = "1"
 tauri-specta = { version = "1", features = ["javascript", "typescript"] }
 derivative = "2.2.0"
+
+[dependencies.tauri-plugin-sql]
+git = "https://github.com/tauri-apps/plugins-workspace"
+branch = "v1"
+features = ["sqlite"]                                   # or "postgres", or "mysql"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

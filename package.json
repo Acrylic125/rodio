@@ -25,6 +25,7 @@
     "react-konva": "^18.2.10",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
+    "tauri-plugin-sql-api": "github:tauri-apps/tauri-plugin-sql#v1",
     "valibot": "^0.30.0"
   },
   "devDependencies": {
