@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn, resolveError } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FilterIcon, PlusIcon } from "lucide-react";
 import ImagePreview from "@/components/project/image-preview";
+import { create } from "zustand";
+import { RodioProject } from "@/lib/rodio";
 
 export const Route = createFileRoute("/project/$path")({
   component: Project,
@@ -34,6 +36,33 @@ const labels = [
     end: [1, 1],
   },
 ] as const;
+
+export const useCurrentProject = create((set) => {
+  return {
+    project: null satisfies null | RodioProject,
+    initStatus: {
+      state: "idle",
+    } satisfies
+      | {
+          state: "idle" | "loading" | "success";
+        }
+      | {
+          state: "error";
+          message: string;
+        },
+    async initProject(path: string) {
+      set({ initStatus: "loading" });
+      try {
+        const project = new RodioProject(path);
+        await project.init();
+        set({ project, initStatus: "success" });
+      } catch (error) {
+        set({ initStatus: "error", error: resolveError(error) });
+        throw error; // Rethrow so it can be caught by the caller.
+      }
+    },
+  };
+});
 
 function Project() {
   // const { path } = Route.useParams();
