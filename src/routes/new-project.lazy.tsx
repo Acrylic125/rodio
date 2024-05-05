@@ -9,14 +9,20 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { createDir, exists } from "@tauri-apps/api/fs";
 import { useMutation } from "@tanstack/react-query";
 import { open } from "@tauri-apps/api/dialog";
 import { appLocalDataDir } from "@tauri-apps/api/path";
 import { useState } from "react";
 import path from "path";
+import { Loader2 } from "lucide-react";
+import { isValidFilepath } from "@/lib/file";
+import { RodioProject } from "@/lib/rodio";
 
 // readDir("");
+type CreateProjectErrors = {
+  projectName?: string;
+  projectPath?: string;
+};
 
 export const Route = createLazyFileRoute("/new-project")({
   component: NewProject,
@@ -28,20 +34,59 @@ function shouldUseProjectNameAsBasename(_path: string, projectName: string) {
 }
 
 function NewProject() {
-  const navigate = useNavigate({ from: "/new-project" });
+  // const navigate = useNavigate({ from: "/new-project" });
   const createProjectMut = useMutation({
-    mutationFn: async ({ path, name }: { path: string; name: string }) => {
-      // const fullPath = path.join(dir, name);
-      if (await exists(path)) {
-        throw Error(`${path} already exists.`);
+    mutationFn: async ({
+      path,
+      name,
+    }: {
+      path: string;
+      name: string;
+    }): Promise<
+      | {
+          state: "valid";
+        }
+      | {
+          state: "invalid";
+          errors: CreateProjectErrors;
+        }
+    > => {
+      let errors: CreateProjectErrors = {};
+      if (name === "") {
+        errors.projectName = "Project name is required";
       }
-      createDir(name, {
-        recursive: true,
-      });
+
+      const project = new RodioProject(path);
+      project.config.values.name = name;
+      if (!isValidFilepath(path)) {
+        errors.projectPath = "Invalid project path";
+      } else {
+        // Check if the directory exists
+        if (await project.configExists()) {
+          errors.projectPath = `Cannot create project at '${path}'. Project config already exists!`;
+        }
+      }
+
+      // Check if there are any errors
+      const hasErrors = Object.values(errors).findIndex((v) => v !== undefined);
+      if (hasErrors !== -1) {
+        return {
+          state: "invalid",
+          errors,
+        };
+      }
+      await project.init();
+      return {
+        state: "valid",
+      };
     },
   });
   const [projectName, setProjectName] = useState("");
   const [projectPath, setProjectPath] = useState("");
+  const validationStatus = createProjectMut.data ?? {
+    state: "invalid",
+    errors: {},
+  };
 
   return (
     <main className="flex flex-col items-center bg-background w-screen h-svh">
@@ -68,13 +113,14 @@ function NewProject() {
           className="flex flex-col gap-4 md:gap-8 lg:gap-12"
           onSubmit={(e) => {
             e.preventDefault();
-            // invoke("hello_world", { name: "World" })
-            //   // `invoke` returns a Promise
-            //   .then((response) => console.log(response));
-            navigate({
-              to: "/project/$path",
-              params: { path: "helloworld" },
+            createProjectMut.mutate({
+              path: projectPath,
+              name: projectName,
             });
+            // navigate({
+            //   to: "/project/$path",
+            //   params: { path: "helloworld" },
+            // });
           }}
         >
           <div className="flex flex-col gap-2 md:gap-4 lg:gap-6">
@@ -85,8 +131,11 @@ function NewProject() {
                 className="h-12"
                 value={projectName}
                 onChange={(e) => {
+                  // Update project name
                   const newProjectName = e.target.value;
                   setProjectName(newProjectName);
+
+                  // Update project path
                   const currentProjectPath = projectPath;
                   if (
                     shouldUseProjectNameAsBasename(
@@ -104,6 +153,12 @@ function NewProject() {
                   }
                 }}
               />
+              {validationStatus.state === "invalid" &&
+                validationStatus.errors.projectName && (
+                  <p className="text-red-500">
+                    {validationStatus.errors.projectName}
+                  </p>
+                )}
             </label>
             <div></div>
             <label className="flex flex-col gap-2">
@@ -150,18 +205,37 @@ function NewProject() {
                     className="w-full h-12 rounded-l-none"
                     aria-label="Project Directory Base Path"
                     value={projectPath}
-                    onChange={(e) => setProjectPath(e.target.value)}
+                    onChange={(e) => {
+                      setProjectPath(e.target.value);
+                    }}
                   />
                 </div>
               </div>
-              {/* <Input type="file" className="h-12" /> */}
+              {validationStatus.state === "invalid" &&
+                validationStatus.errors.projectPath && (
+                  <p className="text-red-500">
+                    {validationStatus.errors.projectPath}
+                  </p>
+                )}
             </label>
           </div>
+          {createProjectMut.error && (
+            <p className="w-full bg-red-200 dark:bg-red-300 border-2 border-red-400 dark:border-red-500 text-red-500 dark:text-red-500 p-2 md:p-4 rounded-md">
+              {createProjectMut.error instanceof Error
+                ? createProjectMut.error.message
+                : "An error occurred"}
+            </p>
+          )}
           <div className="flex flex-row gap-2">
-            <Button asChild variant="outline">
+            <Button type="button" asChild variant="outline">
               <Link to="/">Cancel</Link>
             </Button>
-            <Button type="submit">Create</Button>
+            <Button type="submit" disabled={createProjectMut.isPending}>
+              {createProjectMut.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Create
+            </Button>
           </div>
         </form>
       </section>
