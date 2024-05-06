@@ -285,7 +285,7 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
       <img
         src={convertFileSrc(currentPath)}
         loading="lazy"
-        alt="test"
+        alt={`Preview ${currentPath}`}
         className="w-full h-full object-contain select-none"
         ref={imageRef}
         draggable={false}
