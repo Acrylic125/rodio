@@ -1,5 +1,11 @@
 import Database from "tauri-plugin-sql-api";
-import { createDir, exists, readTextFile, writeFile } from "@tauri-apps/api/fs";
+import {
+  createDir,
+  exists,
+  readDir,
+  readTextFile,
+  writeFile,
+} from "@tauri-apps/api/fs";
 import path from "path";
 import { Output, object, parse, string } from "valibot";
 
@@ -51,6 +57,13 @@ export class RodioProjectConfig implements RodioProjectFile {
 export class RodioProjectImages implements RodioProjectFile {
   public readonly type = "dir";
   public readonly relPath: string = "images";
+
+  public async getImages() {
+    const files = await readDir(this.relPath);
+    return files.map((file) => ({
+      path: file.path,
+    }));
+  }
 
   public async init(projectPath: string) {
     const fp = path.join(projectPath, this.relPath);
