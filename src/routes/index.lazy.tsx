@@ -1,5 +1,53 @@
 import { Button } from "@/components/ui/button";
+import { RodioApp } from "@/lib/rodio";
+import { resolveError } from "@/lib/utils";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
+import { appDataDir } from "@tauri-apps/api/path";
+import { useEffect } from "react";
+import { StoreApi, UseBoundStore, create } from "zustand";
+
+const useApp: UseBoundStore<
+  StoreApi<{
+    loadStatus:
+      | {
+          state: "idle" | "loading" | "success";
+        }
+      | {
+          state: "error";
+          message: string;
+        };
+    app: RodioApp | null;
+    load: () => Promise<void>;
+  }>
+> = create((set) => ({
+  loadStatus: {
+    state: "idle",
+  },
+  app: null,
+  load: async () => {
+    set({
+      loadStatus: {
+        state: "loading",
+      },
+    });
+    try {
+      const path = await appDataDir();
+      const app = new RodioApp(path);
+      await app.load();
+      set({
+        app,
+      });
+    } catch (error) {
+      set({
+        loadStatus: {
+          state: "error",
+          message: resolveError(error),
+        },
+      });
+      throw error;
+    }
+  },
+}));
 
 export const Route = createLazyFileRoute("/")({
   component: Index,
@@ -20,6 +68,16 @@ const projects = [
 // const projects = [];
 
 function Index() {
+  const app = useApp((state) => {
+    return {
+      app: state.app,
+      load: state.load,
+    };
+  });
+  useEffect(() => {
+    if (app.app === null) app.load();
+  }, [app.app, app.load]);
+
   return (
     <main className="flex flex-col items-center bg-background w-screen h-svh">
       <div className="w-full h-full flex flex-row gap-4 md:gap-8 lg:gap-12 max-w-screen-2xl">
