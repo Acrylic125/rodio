@@ -9,11 +9,42 @@ import {
 import path from "path";
 import { Output, object, parse, string } from "valibot";
 
+type Migration = {
+  description: string;
+  up: string;
+  down: string;
+};
+
+async function migrateSQLite(db: Database, migrations: Migration[]) {
+  // Ensure the database has the migrations table
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS migrations (
+      id INTEGER PRIMARY KEY,
+      version INTEGER NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  const current = await db.select<
+    {
+      id: number;
+      version: number;
+    }[]
+  >(`
+    SELECT id, version FROM migrations LIMIT 1;
+  `);
+
+  console.log(current);
+  // // INSERT OR REPLACE INTO users (id, name, email) VALUES (1, "Alice", "alice@example.com");
+
+  // COMMIT;
+}
+
 export interface RodioProjectFile {
   readonly type: "file" | "dir";
   readonly relPath: string;
 
-  init(projectPath: string): Promise<void>;
+  load(projectPath: string): Promise<void>;
 }
 
 export class RodioProjectConfig implements RodioProjectFile {
@@ -41,7 +72,7 @@ export class RodioProjectConfig implements RodioProjectFile {
     );
   }
 
-  public async init(projectPath: string) {
+  public async load(projectPath: string) {
     const fp = path.join(projectPath, this.relPath);
     if (!(await exists(fp))) {
       await this.save(projectPath);
@@ -65,7 +96,7 @@ export class RodioProjectImages implements RodioProjectFile {
     }));
   }
 
-  public async init(projectPath: string) {
+  public async load(projectPath: string) {
     const fp = path.join(projectPath, this.relPath);
     if (!(await exists(fp))) {
       await createDir(fp);
@@ -80,12 +111,12 @@ export class RodioProjectDB implements RodioProjectFile {
 
   public async db() {
     if (this._db === null) {
-      throw new Error("Database not initialized");
+      throw new Error("Database not loadialized");
     }
     return this._db;
   }
 
-  public async init(projectPath: string) {
+  public async load(projectPath: string) {
     const fp = path.join(projectPath, this.relPath);
     if (!(await exists(fp))) {
       await writeFile(fp, "");
@@ -103,14 +134,14 @@ export class RodioProject {
 
   constructor(public projectPath: string) {}
 
-  public async init() {
+  public async load() {
     if (!(await exists(this.projectPath))) {
       await createDir(this.projectPath, {
         recursive: true,
       });
     }
     const promises = this.getAllProjectFiles().map(async (projectFile) => {
-      await projectFile.init(this.projectPath);
+      await projectFile.load(this.projectPath);
       return projectFile;
     });
     return Promise.allSettled(promises);
@@ -130,5 +161,85 @@ export class RodioProject {
 
   public async projectFileExists(projectFile: RodioProjectFile) {
     return exists(this.getProjectFileFullPath(projectFile));
+  }
+}
+
+export interface RodioAppFile {
+  readonly type: "file" | "dir";
+  readonly relPath: string;
+
+  load(appPath: string): Promise<void>;
+}
+
+export class RodioAppDB implements RodioAppFile {
+  static migrations: Migration[] = [
+    {
+      description: "Create projects table",
+      up: `
+        CREATE TABLE IF NOT EXISTS projects (
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+          UNIQUE(path)
+        );
+      `,
+      down: `
+        DROP TABLE projects;
+      `,
+    },
+  ];
+
+  public readonly type = "file";
+  public readonly relPath: string = "app.db";
+  private _db: Database | null = null;
+
+  public async getProjects() {
+    const db = await this.db();
+    return db.select(`SELECT * FROM projects`);
+  }
+
+  public async db() {
+    if (this._db === null) {
+      throw new Error("Database not loadialized");
+    }
+    return this._db;
+  }
+
+  public async load(appPath: string) {
+    const fp = path.join(appPath, this.relPath);
+    if (!(await exists(fp))) {
+      await writeFile(fp, "");
+      return;
+    }
+    const db = await Database.load(fp);
+
+    await migrateSQLite(db, RodioAppDB.migrations);
+
+    this._db = db;
+  }
+}
+
+export class RodioApp {
+  public db = new RodioAppDB();
+
+  constructor(public appPath: string) {}
+
+  public getAllAppFiles(): RodioAppFile[] {
+    return [this.db];
+  }
+
+  public async load() {
+    if (!(await exists(this.appPath))) {
+      await createDir(this.appPath, {
+        recursive: true,
+      });
+    }
+    const promises = this.getAllAppFiles().map(async (appFile) => {
+      await appFile.load(this.appPath);
+      return appFile;
+    });
+    return Promise.allSettled(promises);
   }
 }
