@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn, resolveError } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FilterIcon, Loader2, PlusIcon } from "lucide-react";
+import { FilterIcon, Loader2 } from "lucide-react";
 import ImagePreview from "@/components/project/image-preview";
 import { StoreApi, UseBoundStore, create } from "zustand";
 import { RodioProject } from "@/lib/rodio";
@@ -41,7 +40,7 @@ const labels = [
 export const useCurrentProject: UseBoundStore<
   StoreApi<{
     project: RodioProject | null;
-    initStatus:
+    loadStatus:
       | {
           state: "idle" | "loading" | "success";
         }
@@ -57,12 +56,12 @@ export const useCurrentProject: UseBoundStore<
         path: string;
       }[]
     >;
-    initProject: (path: string) => Promise<void>;
+    loadProject: (path: string) => Promise<void>;
   }>
 > = create((set) => ({
   project: null,
   imagePaths: null,
-  initStatus: {
+  loadStatus: {
     state: "idle",
   },
   selectedImage: null,
@@ -75,19 +74,19 @@ export const useCurrentProject: UseBoundStore<
     }
     return this.project.images.getImages();
   },
-  async initProject(path: string) {
+  async loadProject(path: string) {
     set({
-      initStatus: {
+      loadStatus: {
         state: "loading",
       },
     });
     try {
       const project = new RodioProject(path);
-      await project.init();
-      set({ project, initStatus: { state: "success" } });
+      await project.load();
+      set({ project, loadStatus: { state: "success" } });
     } catch (error) {
       set({
-        initStatus: {
+        loadStatus: {
           state: "error",
           message: resolveError(error),
         },
@@ -154,7 +153,7 @@ function Project() {
   const currentProject = useCurrentProject((state) => {
     return {
       project: state.project,
-      initProject: state.initProject,
+      initProject: state.loadProject,
     };
   });
   useEffect(() => {
@@ -181,7 +180,7 @@ function Project() {
       <div className="w-full h-[calc(100svh-3rem)] flex flex-row">
         <section className="w-full h-[calc(100svh-3rem)] max-w-64 overflow-auto relative">
           <div className="flex flex-col gap-2 sticky w-full border-b bg-background/75 backdrop-blur-md border-gray-300 dark:border-gray-700 top-0 p-3">
-            <h2 className="text-gray-500 font-medium">FILES</h2>
+            <h2 className="text-gray-500 font-medium select-none">FILES</h2>
             <div className="flex flex-row gap-2">
               <Input placeholder="Search" />
               <Button
@@ -202,7 +201,7 @@ function Project() {
           )}
         </div>
         <section className="w-full h-[calc(100svh-3rem)] max-w-64 overflow-auto relative">
-          <h2 className="text-gray-500 font-medium p-2 border-b border-gray-300 dark:border-gray-700">
+          <h2 className="text-gray-500 font-medium p-2 border-b border-gray-300 dark:border-gray-700 select-none">
             LABELS
           </h2>
           <ul>
@@ -230,7 +229,7 @@ function Project() {
               </li>
             ))}
           </ul>
-          <h2 className="text-gray-500 font-medium p-2 border-b border-gray-300 dark:border-gray-700">
+          <h2 className="text-gray-500 font-medium p-2 border-b border-gray-300 dark:border-gray-700 select-none">
             CLASSES
           </h2>
           <ul>
