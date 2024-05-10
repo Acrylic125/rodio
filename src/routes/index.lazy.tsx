@@ -77,10 +77,14 @@ function ProjectListItem(
     <li
       tabIndex={0}
       onClick={props.onClick}
-      className="flex flex-col gap-1 w-full p-2 md:p-4 lg:p-6 border border-gray-300 dark:border-gray-700 rounded-md focus:bg-gray-200 dark:focus:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800"
+      className="flex flex-col gap-1 w-full p-2 md:p-4 lg:p-6 border border-gray-300 dark:border-gray-700 rounded-md focus:bg-gray-200 dark:focus:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 cursor-pointer"
     >
-      <h3 className="text-gray-800 dark:text-gray-200 text-lg">{props.name}</h3>
-      <p className="text-gray-600 dark:text-gray-400 text-sm">{props.path}</p>
+      <h3 className="text-gray-800 dark:text-gray-200 text-lg cursor-pointer">
+        {props.name}
+      </h3>
+      <p className="text-gray-600 dark:text-gray-400 text-sm cursor-pointer">
+        {props.path}
+      </p>
     </li>
   );
 }
@@ -103,7 +107,7 @@ function ProjectsList() {
         _projects.map(async (_project) => {
           try {
             const projectFile = new RodioProjectConfig();
-            throw new Error("Not implemented");
+            // throw new Error("Not implemented");
             await projectFile.load(_project.path);
             return {
               type: "success",
