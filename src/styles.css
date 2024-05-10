@@ -73,8 +73,17 @@ body {
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border select-none cursor-default;
   }
+
+  a {
+    @apply cursor-pointer;
+  }
+
+  input {
+    @apply cursor-text;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
