@@ -79,7 +79,7 @@ function NewProject() {
           errors,
         };
       }
-      await project.init();
+      await project.load();
       navigate({
         to: "/project/$path",
         params: { path: encodeURIComponent(path) },

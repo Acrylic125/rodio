@@ -252,7 +252,10 @@ export class RodioAppDB implements RodioAppFile {
 
   public async addProject(projectPath: string) {
     const db = await this.db();
-    return db.execute(`INSERT INTO projects (path) VALUES ($1)`, [projectPath]);
+    return db.execute(
+      `INSERT INTO projects (path) VALUES ($1) ON CONFLICT(path) DO NOTHING;`,
+      [projectPath]
+    );
   }
 
   public async getProjects() {

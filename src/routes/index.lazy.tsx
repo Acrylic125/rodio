@@ -3,9 +3,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RodioApp, RodioProjectConfig } from "@/lib/rodio";
 import { resolveError } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Link, createLazyFileRoute } from "@tanstack/react-router";
+import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { open } from "@tauri-apps/api/dialog";
-import { appDataDir, appLocalDataDir } from "@tauri-apps/api/path";
+import { appDataDir } from "@tauri-apps/api/path";
 import { useEffect } from "react";
 import { StoreApi, UseBoundStore, create } from "zustand";
 
@@ -57,7 +57,36 @@ export const Route = createLazyFileRoute("/")({
   component: Index,
 });
 
+function ProjectListItem(
+  props:
+    | { type: "success"; path: string; name: string; onClick: () => void }
+    | { type: "error"; error: string; path: string }
+) {
+  if (props.type === "error") {
+    return (
+      <li
+        tabIndex={0}
+        className="flex flex-col gap-1 w-full p-2 md:p-4 lg:p-6 border border-gray-300 dark:border-gray-700 rounded-md focus:bg-gray-200 dark:focus:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800 opacity-75"
+      >
+        <h3 className="text-red-500 text-lg">{props.error}</h3>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{props.path}</p>
+      </li>
+    );
+  }
+  return (
+    <li
+      tabIndex={0}
+      onClick={props.onClick}
+      className="flex flex-col gap-1 w-full p-2 md:p-4 lg:p-6 border border-gray-300 dark:border-gray-700 rounded-md focus:bg-gray-200 dark:focus:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800"
+    >
+      <h3 className="text-gray-800 dark:text-gray-200 text-lg">{props.name}</h3>
+      <p className="text-gray-600 dark:text-gray-400 text-sm">{props.path}</p>
+    </li>
+  );
+}
+
 function ProjectsList() {
+  const navigate = useNavigate({ from: "/new-project" });
   const app = useApp((state) => {
     return {
       loadStatus: state.loadStatus,
@@ -74,6 +103,7 @@ function ProjectsList() {
         _projects.map(async (_project) => {
           try {
             const projectFile = new RodioProjectConfig();
+            throw new Error("Not implemented");
             await projectFile.load(_project.path);
             return {
               type: "success",
@@ -115,22 +145,25 @@ function ProjectsList() {
     list =
       projects.length > 0 ? (
         projects.map((project) => (
-          <li
+          <ProjectListItem
             key={project.path}
-            tabIndex={0}
-            className="flex flex-col gap-1 w-full p-2 md:p-4 lg:p-6 border border-gray-300 dark:border-gray-700 rounded-md focus:bg-gray-200 dark:focus:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800"
-          >
-            {project.type === "error" ? (
-              <h3 className="text-red-500 text-lg">{project.error}</h3>
-            ) : (
-              <h3 className="text-gray-800 dark:text-gray-200 text-lg">
-                {project.name}
-              </h3>
-            )}
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
-              {project.path}
-            </p>
-          </li>
+            {...(project.type === "success"
+              ? {
+                  type: "success",
+                  name: project.name,
+                  onClick: () => {
+                    navigate({
+                      to: "/project/$path",
+                      params: { path: encodeURIComponent(project.path) },
+                    });
+                  },
+                }
+              : {
+                  type: "error",
+                  error: project.error,
+                })}
+            path={project.path}
+          />
         ))
       ) : (
         <div className="w-full h-full flex flex-col gap-2 items-center justify-center">
@@ -153,6 +186,7 @@ function ProjectsList() {
 }
 
 function ProjectActionsSection() {
+  const navigate = useNavigate({ from: "/new-project" });
   const app = useApp((state) => {
     return {
       app: state.app,
@@ -179,7 +213,7 @@ function ProjectActionsSection() {
           const selected = await open({
             directory: true,
             multiple: false,
-            defaultPath: await appLocalDataDir(),
+            defaultPath: await appDataDir(),
           });
           if (!selected) return;
           let selectedProjectPath = Array.isArray(selected)
@@ -187,6 +221,10 @@ function ProjectActionsSection() {
             : selected;
 
           await app.app.db.addProject(selectedProjectPath);
+          navigate({
+            to: "/project/$path",
+            params: { path: encodeURIComponent(selectedProjectPath) },
+          });
         }}
       >
         Load Existing Project
