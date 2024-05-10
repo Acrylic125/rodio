@@ -1,57 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RodioApp, RodioProjectConfig } from "@/lib/rodio";
+import { RodioProjectConfig } from "@/lib/rodio";
 import { resolveError } from "@/lib/utils";
+import {
+  useAppStore as useAppStore,
+  useAppStoreLoad,
+} from "@/stores/app-store";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { open } from "@tauri-apps/api/dialog";
 import { appDataDir } from "@tauri-apps/api/path";
-import { useEffect } from "react";
-import { StoreApi, UseBoundStore, create } from "zustand";
-
-const useApp: UseBoundStore<
-  StoreApi<{
-    loadStatus:
-      | {
-          state: "idle" | "loading" | "success";
-        }
-      | {
-          state: "error";
-          message: string;
-        };
-    app: RodioApp | null;
-    load: () => Promise<void>;
-  }>
-> = create((set) => ({
-  loadStatus: {
-    state: "idle",
-  },
-  app: null,
-  load: async () => {
-    set({
-      loadStatus: {
-        state: "loading",
-      },
-    });
-    try {
-      const path = await appDataDir();
-      const app = new RodioApp(path);
-      await app.load();
-      set({
-        app,
-      });
-    } catch (error) {
-      set({
-        loadStatus: {
-          state: "error",
-          message: resolveError(error),
-        },
-      });
-      console.error(error);
-      throw error;
-    }
-  },
-}));
 
 export const Route = createLazyFileRoute("/")({
   component: Index,
@@ -91,7 +49,7 @@ function ProjectListItem(
 
 function ProjectsList() {
   const navigate = useNavigate({ from: "/new-project" });
-  const app = useApp((state) => {
+  const appStore = useAppStore((state) => {
     return {
       loadStatus: state.loadStatus,
       app: state.app,
@@ -99,10 +57,10 @@ function ProjectsList() {
   });
   const projectsQuery = useQuery({
     queryKey: ["projects"],
-    enabled: app.app !== null,
+    enabled: appStore.app !== null,
     queryFn: async () => {
-      if (app.app === null) return [];
-      const _projects = await app.app.db.getProjects();
+      if (appStore.app === null) return [];
+      const _projects = await appStore.app.db.getProjects();
       const projects = await Promise.allSettled(
         _projects.map(async (_project) => {
           try {
@@ -191,7 +149,7 @@ function ProjectsList() {
 
 function ProjectActionsSection() {
   const navigate = useNavigate({ from: "/new-project" });
-  const app = useApp((state) => {
+  const app = useAppStore((state) => {
     return {
       app: state.app,
     };
@@ -238,15 +196,13 @@ function ProjectActionsSection() {
 }
 
 function Index() {
-  const app = useApp((state) => {
+  const appStore = useAppStore((state) => {
     return {
       app: state.app,
       load: state.load,
     };
   });
-  useEffect(() => {
-    if (app.app === null) app.load();
-  }, [app.app, app.load]);
+  useAppStoreLoad(appStore);
 
   return (
     <main className="flex flex-col items-center bg-background w-screen h-svh">
