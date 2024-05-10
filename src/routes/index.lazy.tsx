@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { RodioApp } from "@/lib/rodio";
+import { Skeleton } from "@/components/ui/skeleton";
+import { RodioApp, RodioProjectConfig } from "@/lib/rodio";
 import { resolveError } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
-import { appDataDir } from "@tauri-apps/api/path";
+import { open } from "@tauri-apps/api/dialog";
+import { appDataDir, appLocalDataDir } from "@tauri-apps/api/path";
 import { useEffect } from "react";
 import { StoreApi, UseBoundStore, create } from "zustand";
 
@@ -44,6 +47,7 @@ const useApp: UseBoundStore<
           message: resolveError(error),
         },
       });
+      console.error(error);
       throw error;
     }
   },
@@ -53,19 +57,143 @@ export const Route = createLazyFileRoute("/")({
   component: Index,
 });
 
-const projects = [
-  {
-    id: "1",
-    name: "Untitled Project",
-    path: "/path/to/project",
-  },
-  {
-    id: "2",
-    name: "Untitled Project",
-    path: "/path/to/project2",
-  },
-] as const;
-// const projects = [];
+function ProjectsList() {
+  const app = useApp((state) => {
+    return {
+      loadStatus: state.loadStatus,
+      app: state.app,
+    };
+  });
+  const projectsQuery = useQuery({
+    queryKey: ["projects"],
+    enabled: app.app !== null,
+    queryFn: async () => {
+      if (app.app === null) return [];
+      const _projects = await app.app.db.getProjects();
+      const projects = await Promise.allSettled(
+        _projects.map(async (_project) => {
+          try {
+            const projectFile = new RodioProjectConfig();
+            await projectFile.load(_project.path);
+            return {
+              type: "success",
+              name: projectFile.values.name,
+              path: _project.path,
+            } as const;
+          } catch (error) {
+            console.error(error);
+            return {
+              type: "error",
+              error: resolveError(error),
+              path: _project.path,
+            } as const;
+          }
+        })
+      );
+      return projects
+        .map((project) => {
+          if (project.status === "fulfilled") return project.value;
+          return null;
+        })
+        .filter(
+          (project): project is Exclude<typeof project, null> =>
+            project !== null
+        );
+    },
+  });
+
+  let list = null;
+  if (projectsQuery.isLoading) {
+    list = Array.from({ length: 3 }).map((_, i) => (
+      <li key={i} className="flex flex-col gap-1">
+        <Skeleton className="w-full h-4" />
+        <Skeleton className="w-full h-4" />
+      </li>
+    ));
+  } else {
+    const projects = projectsQuery.data ?? [];
+    list =
+      projects.length > 0 ? (
+        projects.map((project) => (
+          <li
+            key={project.path}
+            tabIndex={0}
+            className="flex flex-col gap-1 w-full p-2 md:p-4 lg:p-6 border border-gray-300 dark:border-gray-700 rounded-md focus:bg-gray-200 dark:focus:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800"
+          >
+            {project.type === "error" ? (
+              <h3 className="text-red-500 text-lg">{project.error}</h3>
+            ) : (
+              <h3 className="text-gray-800 dark:text-gray-200 text-lg">
+                {project.name}
+              </h3>
+            )}
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              {project.path}
+            </p>
+          </li>
+        ))
+      ) : (
+        <div className="w-full h-full flex flex-col gap-2 items-center justify-center">
+          <h2 className="text-gray-800 dark:text-gray-200 text-xl">
+            No projects found
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Click "New Project" or "Load Existing Project" to get started
+          </p>
+        </div>
+      );
+  }
+
+  return (
+    <ul className="flex flex-col w-full h-full border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 p-2 md:p-4 lg:p-6 rounded-md gap-1 md:gap-2 lg:gap-4">
+      <h2 className="text-gray-500 font-medium">RECENTLY OPENED</h2>
+      {list}
+    </ul>
+  );
+}
+
+function ProjectActionsSection() {
+  const app = useApp((state) => {
+    return {
+      app: state.app,
+    };
+  });
+
+  return (
+    <div className="flex flex-col gap-2 md:gap-4">
+      <Link to="/new-project">
+        <Button
+          className="w-full text-left justify-start px-4 py-2 mdLpx-4 md:py-4 lg:px-6 lg:py-6"
+          variant="outline"
+        >
+          New Project
+        </Button>
+      </Link>
+      <Button
+        className="w-full text-left justify-start px-4 py-2 mdLpx-4 md:py-4 lg:px-6 lg:py-6"
+        variant="outline"
+        onClick={async (e) => {
+          e.preventDefault();
+          if (app.app === null) return;
+
+          const selected = await open({
+            directory: true,
+            multiple: false,
+            defaultPath: await appLocalDataDir(),
+          });
+          if (!selected) return;
+          let selectedProjectPath = Array.isArray(selected)
+            ? selected[0]
+            : selected;
+
+          await app.app.db.addProject(selectedProjectPath);
+        }}
+      >
+        Load Existing Project
+      </Button>
+    </div>
+  );
+}
 
 function Index() {
   const app = useApp((state) => {
@@ -91,53 +219,11 @@ function Index() {
                 Data labeling tool.
               </p>
             </div>
-            <div className="flex flex-col gap-2 md:gap-4">
-              <Link to="/new-project">
-                <Button
-                  className="w-full text-left justify-start px-4 py-2 mdLpx-4 md:py-4 lg:px-6 lg:py-6"
-                  variant="outline"
-                >
-                  New Project
-                </Button>
-              </Link>
-              <Button
-                className="w-full text-left justify-start px-4 py-2 mdLpx-4 md:py-4 lg:px-6 lg:py-6"
-                variant="outline"
-              >
-                Load Existing Project
-              </Button>
-            </div>
+            <ProjectActionsSection />
           </div>
         </section>
         <section className="w-full flex flex-col p-4 md:p-8 lg:p-12 pl-0 md:pl-0 lg:pl-0">
-          <ul className="flex flex-col w-full h-full border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 p-2 md:p-4 lg:p-6 rounded-md gap-1 md:gap-2 lg:gap-4">
-            <h2 className="text-gray-500 font-medium">RECENTLY OPENED</h2>
-            {projects.length > 0 ? (
-              projects.map((project) => (
-                <li
-                  key={project.id}
-                  tabIndex={0}
-                  className="flex flex-col gap-1 w-full p-2 md:p-4 lg:p-6 border border-gray-300 dark:border-gray-700 rounded-md focus:bg-gray-200 dark:focus:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-800"
-                >
-                  <h3 className="text-gray-800 dark:text-gray-200 text-lg">
-                    {project.name}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    {project.path}
-                  </p>
-                </li>
-              ))
-            ) : (
-              <div className="w-full h-full flex flex-col gap-2 items-center justify-center">
-                <h2 className="text-gray-800 dark:text-gray-200 text-xl">
-                  No projects found
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Click "New Project" to get started
-                </p>
-              </div>
-            )}
-          </ul>
+          <ProjectsList />
         </section>
       </div>
     </main>

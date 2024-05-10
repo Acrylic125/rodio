@@ -15,13 +15,17 @@ type Migration = {
   down: string;
 };
 
-async function migrateSQLite(db: Database, migrations: Migration[]) {
+async function migrateSQLite(
+  db: Database,
+  migrations: Migration[],
+  mode: "up" | "down" = "up"
+) {
   // Ensure the database has the migrations table
   await db.execute(`
     CREATE TABLE IF NOT EXISTS migrations (
       id INTEGER PRIMARY KEY,
       version INTEGER NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -34,10 +38,63 @@ async function migrateSQLite(db: Database, migrations: Migration[]) {
     SELECT id, version FROM migrations LIMIT 1;
   `);
 
-  console.log(current);
-  // // INSERT OR REPLACE INTO users (id, name, email) VALUES (1, "Alice", "alice@example.com");
+  let currentRecord = {
+    id: 0,
+    version: 0,
+  };
+  if (current.length === 0) {
+    const queryResult = await db.execute(`
+      INSERT INTO migrations (version) VALUES (0);
+    `);
+    currentRecord.id = queryResult.lastInsertId;
+  } else {
+    const _currentRecord = current[0];
+    currentRecord = {
+      id: _currentRecord.id,
+      version: _currentRecord.version,
+    };
+  }
 
-  // COMMIT;
+  if (mode === "down") {
+    const targetVersion = 0;
+    if (currentRecord.version === targetVersion) {
+      return;
+    }
+
+    // Migrations needs to be done sequentially.
+    for (let i = currentRecord.version; i > targetVersion; i--) {
+      const migration = migrations[i - 1];
+
+      const sql = `
+      ${migration.down}
+
+      UPDATE migrations SET version = ${i - 1} WHERE id = ${currentRecord.id};
+      `;
+      console.log(sql);
+
+      await db.execute(sql);
+    }
+    return;
+  }
+
+  const targetVersion = migrations.length; // Start at 1 for the first migration.
+  if (currentRecord.version === targetVersion) {
+    return;
+  }
+
+  // Migrations needs to be done sequentially.
+  for (let i = currentRecord.version; i < targetVersion; i++) {
+    const migration = migrations[i];
+
+    const sql = `
+    ${migration.up}
+
+    UPDATE migrations SET version = ${i + 1} WHERE id = ${currentRecord.id};
+    `;
+    console.log(sql);
+
+    await db.execute(sql);
+  }
 }
 
 export interface RodioProjectFile {
@@ -176,14 +233,12 @@ export class RodioAppDB implements RodioAppFile {
     {
       description: "Create projects table",
       up: `
-        CREATE TABLE IF NOT EXISTS projects (
-          id INTEGER PRIMARY KEY,
-          name TEXT NOT NULL,
-          path TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
-          UNIQUE(path)
-        );
+      CREATE TABLE IF NOT EXISTS projects (
+        id INTEGER PRIMARY KEY,
+        path TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(path)
+      );
       `,
       down: `
         DROP TABLE projects;
@@ -195,9 +250,20 @@ export class RodioAppDB implements RodioAppFile {
   public readonly relPath: string = "app.db";
   private _db: Database | null = null;
 
+  public async addProject(projectPath: string) {
+    const db = await this.db();
+    return db.execute(`INSERT INTO projects (path) VALUES ($1)`, [projectPath]);
+  }
+
   public async getProjects() {
     const db = await this.db();
-    return db.select(`SELECT * FROM projects`);
+    const projects = await db.select<
+      {
+        id: number;
+        path: string;
+      }[]
+    >(`SELECT * FROM projects`);
+    return projects;
   }
 
   public async db() {
@@ -213,9 +279,9 @@ export class RodioAppDB implements RodioAppFile {
       await writeFile(fp, "");
       return;
     }
-    const db = await Database.load(fp);
+    const db = await Database.load(`sqlite:${fp}`);
 
-    await migrateSQLite(db, RodioAppDB.migrations);
+    await migrateSQLite(db, RodioAppDB.migrations, "up");
 
     this._db = db;
   }
@@ -240,6 +306,6 @@ export class RodioApp {
       await appFile.load(this.appPath);
       return appFile;
     });
-    return Promise.allSettled(promises);
+    return Promise.all(promises);
   }
 }
