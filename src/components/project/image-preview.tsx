@@ -44,6 +44,56 @@ function Anchor({
   );
 }
 
+const labelAnchorSize = 8;
+const borderSelectedWidth = 2;
+/**
+ * [-1, -1] [0, -1] [1, -1]
+ * [-1, 0]         [1, 0]
+ * [-1, 1] [0, 1] [1, 1]
+ */
+const labelBoxAnchors = [
+  {
+    pos: "top-left",
+    cursor: "diagonal",
+    at: [-1, -1],
+  },
+  {
+    pos: "top",
+    cursor: "vertical",
+    at: [0, -1],
+  },
+  {
+    pos: "top-right",
+    cursor: "diagonal",
+    at: [1, -1],
+  },
+  {
+    pos: "right",
+    cursor: "horizontal",
+    at: [1, 0],
+  },
+  {
+    pos: "bottom-right",
+    cursor: "diagonal",
+    at: [1, 1],
+  },
+  {
+    pos: "bottom",
+    cursor: "vertical",
+    at: [0, 1],
+  },
+  {
+    pos: "bottom-left",
+    cursor: "diagonal",
+    at: [-1, 1],
+  },
+  {
+    pos: "left",
+    cursor: "horizontal",
+    at: [-1, 0],
+  },
+] as const;
+
 function LabelBox({
   isSelected,
   id,
@@ -142,15 +192,29 @@ function LabelBox({
       });
     }
   };
+  const x = startPos.x * containerDimensions.width;
+  const y = startPos.y * containerDimensions.height;
+  const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
+  const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
 
   return (
     <Group onTap={_onRequestSelect} onMouseDown={_onRequestSelect}>
       {/* <Rect /> */}
+      {isSelected && (
+        <Rect
+          x={x - borderSelectedWidth}
+          y={y - borderSelectedWidth}
+          width={width + borderSelectedWidth * 2}
+          height={height + borderSelectedWidth * 2}
+          stroke="#0ea5e9"
+          strokeWidth={borderSelectedWidth}
+        />
+      )}
       <Rect
-        x={startPos.x * containerDimensions.width}
-        y={startPos.y * containerDimensions.height}
-        width={Math.abs(endPos.x - startPos.x) * containerDimensions.width}
-        height={Math.abs(endPos.y - startPos.y) * containerDimensions.height}
+        x={x}
+        y={y}
+        width={width}
+        height={height}
         fill="#ff00004f"
         stroke="#ff0000"
         strokeWidth={4}
@@ -158,10 +222,56 @@ function LabelBox({
         ref={ref}
         onDragEnd={(e) => handleDrag(e, true)}
         onDragMove={(e) => handleDrag(e, false)}
-        onTransformEnd={() => handleTransform(false)}
-        onTransform={() => handleTransform(false)}
+        // onTransformEnd={() => handleTransform(false)}
+        // onTransform={() => handleTransform(false)}
       />
-      {isSelected && (
+      {isSelected &&
+        labelBoxAnchors.map((anchor) => {
+          let anchorX = x + width / 2;
+          let anchorY = y + height / 2;
+          const anchorOffset = labelAnchorSize / 2;
+
+          if (anchor.at[0] >= 1) {
+            anchorX = x + width - anchorOffset;
+          } else if (anchor.at[0] <= -1) {
+            anchorX = x - anchorOffset;
+          }
+
+          if (anchor.at[1] >= 1) {
+            anchorY = y + height - anchorOffset;
+          } else if (anchor.at[1] <= -1) {
+            anchorY = y - anchorOffset;
+          }
+
+          return (
+            <Rect
+              key={anchor.pos}
+              x={anchorX}
+              y={anchorY}
+              width={labelAnchorSize}
+              height={labelAnchorSize}
+              fill="#e0f2fe"
+              stroke="#0ea5e9"
+              strokeWidth={1}
+              draggable
+              onDragEnd={(e) => {
+                console.log("Done");
+              }}
+              onDragMove={(e) => {
+                const pos = e.target.position();
+                e.target.position(pos);
+                const newNormalizedPosition = {
+                  x: pos.x / containerDimensions.width,
+                  y: pos.y / containerDimensions.height,
+                };
+                if (anchor.pos === "bottom-right") {
+                  setEndPos(newNormalizedPosition);
+                }
+              }}
+            />
+          );
+        })}
+      {/* {isSelected && (
         <Transformer
           ref={transformerRef}
           rotateEnabled={false}
@@ -175,7 +285,7 @@ function LabelBox({
           //   };
           // }}
         />
-      )}
+      )} */}
     </Group>
   );
 }
