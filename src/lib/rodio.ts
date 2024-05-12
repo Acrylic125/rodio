@@ -146,8 +146,9 @@ export class RodioProjectImages implements RodioProjectFile {
   public readonly type = "dir";
   public readonly relPath: string = "images";
 
-  public async getImages() {
-    const files = await readDir(this.relPath);
+  public async getImages(projectPath: string) {
+    const fp = path.join(projectPath, this.relPath);
+    const files = await readDir(fp);
     return files.map((file) => ({
       path: file.path,
     }));
@@ -179,7 +180,7 @@ export class RodioProjectDB implements RodioProjectFile {
       await writeFile(fp, "");
       return;
     }
-    const db = await Database.load(fp);
+    const db = await Database.load(`sqlite:${fp}`);
     this._db = db;
   }
 }
@@ -197,11 +198,12 @@ export class RodioProject {
         recursive: true,
       });
     }
+
     const promises = this.getAllProjectFiles().map(async (projectFile) => {
       await projectFile.load(this.projectPath);
       return projectFile;
     });
-    return Promise.allSettled(promises);
+    await Promise.all(promises);
   }
 
   public configExists() {
