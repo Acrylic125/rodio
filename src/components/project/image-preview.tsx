@@ -70,6 +70,10 @@ const labelBoxAnchors = [
   },
 ] as const;
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function LabelBox({
   isSelected,
   id,
@@ -209,7 +213,6 @@ function LabelBox({
               strokeWidth={1}
               draggable
               onDragStart={() => {
-                console.log("Start");
                 initialResizePositions.current = {
                   startPos,
                   endPos,
@@ -246,12 +249,12 @@ function LabelBox({
                 }
 
                 const _newStartPos = {
-                  x: Math.min(newStartPos.x, newEndPos.x),
-                  y: Math.min(newStartPos.y, newEndPos.y),
+                  x: clamp(Math.min(newStartPos.x, newEndPos.x), 0, 1),
+                  y: clamp(Math.min(newStartPos.y, newEndPos.y), 0, 1),
                 };
                 const _newEndPos = {
-                  x: Math.max(newStartPos.x, newEndPos.x),
-                  y: Math.max(newStartPos.y, newEndPos.y),
+                  x: clamp(Math.max(newStartPos.x, newEndPos.x), 0, 1),
+                  y: clamp(Math.max(newStartPos.y, newEndPos.y), 0, 1),
                 };
 
                 setStartPos(_newStartPos);
