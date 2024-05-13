@@ -1,3 +1,4 @@
+import { clamp } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { KonvaEventObject } from "konva/lib/Node";
 import { type Rect as RectType } from "konva/lib/shapes/Rect";
@@ -70,10 +71,6 @@ const labelBoxAnchors = [
   },
 ] as const;
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
 function LabelBox({
   isSelected,
   id,
@@ -116,8 +113,8 @@ function LabelBox({
     const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
 
     const start = {
-      x: Math.min(Math.max(pos.x, 0), containerDimensions.width - width),
-      y: Math.min(Math.max(pos.y, 0), containerDimensions.height - height),
+      x: clamp(pos.x, 0, containerDimensions.width - width),
+      y: clamp(pos.y, 0, containerDimensions.height - height),
     };
     const newStartPos = {
       x: start.x / containerDimensions.width,
