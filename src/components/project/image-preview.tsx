@@ -20,31 +20,7 @@ type Label = {
   end: Pos;
 };
 
-function Anchor({
-  x,
-  y,
-  onResize,
-}: {
-  x: number;
-  y: number;
-  onResize: () => void;
-}) {
-  return (
-    <Rect
-      x={x}
-      y={y}
-      width={10}
-      height={10}
-      fill="white"
-      stroke="gray"
-      strokeWidth={2}
-      draggable
-      onDragEnd={onResize}
-    />
-  );
-}
-
-const labelAnchorSize = 8;
+const labelAnchorSize = 12;
 const borderSelectedWidth = 2;
 /**
  * [-1, -1] [0, -1] [1, -1]
@@ -155,43 +131,12 @@ function LabelBox({
       onResize(id, newStartPos, newEndPos);
     }
   };
-  const handleTransform = (triggerOnResize: boolean) => {
-    const node = ref.current;
-    if (!node) return;
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
 
-    node.scaleX(1);
-    node.scaleY(1);
-    // console.log(`${node.width()}, ${node.height()}`);
-    const width = Math.max(node.width() * scaleX, 1);
-    const height = Math.max(node.height() * scaleY, 1);
+  const initialResizePositions = useRef<{
+    startPos: Pos;
+    endPos: Pos;
+  }>();
 
-    const start = {
-      x: node.x(),
-      y: node.y(),
-    };
-    setStartPos({
-      x: Math.max(Math.min(start.x / containerDimensions.width, 1), 0),
-      y: Math.max(Math.min(start.y / containerDimensions.height, 1), 0),
-    });
-    setEndPos({
-      x: Math.max(
-        Math.min((start.x + width) / containerDimensions.width, 1),
-        0
-      ),
-      y: Math.max(
-        Math.min((start.y + height) / containerDimensions.height, 1),
-        0
-      ),
-    });
-    if (triggerOnResize) {
-      onResize(id, start, {
-        x: start.x + width,
-        y: start.y + height,
-      });
-    }
-  };
   const x = startPos.x * containerDimensions.width;
   const y = startPos.y * containerDimensions.height;
   const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
@@ -230,6 +175,7 @@ function LabelBox({
           let anchorX = x + width / 2;
           let anchorY = y + height / 2;
           const anchorOffset = labelAnchorSize / 2;
+          // const anchorOffset = 0;
 
           if (anchor.at[0] >= 1) {
             anchorX = x + width - anchorOffset;
@@ -254,19 +200,76 @@ function LabelBox({
               stroke="#0ea5e9"
               strokeWidth={1}
               draggable
-              onDragEnd={(e) => {
-                console.log("Done");
+              onDragStart={() => {
+                console.log("start");
+                initialResizePositions.current = {
+                  startPos,
+                  endPos,
+                };
+              }}
+              onDragEnd={() => {
+                initialResizePositions.current = undefined;
               }}
               onDragMove={(e) => {
+                if (!initialResizePositions.current) return;
+                const anchorOffset = labelAnchorSize / 2;
                 const pos = e.target.position();
-                e.target.position(pos);
-                const newNormalizedPosition = {
-                  x: pos.x / containerDimensions.width,
-                  y: pos.y / containerDimensions.height,
-                };
-                if (anchor.pos === "bottom-right") {
-                  setEndPos(newNormalizedPosition);
+                // e.target.position(pos);
+
+                let newStartPos = initialResizePositions.current.startPos;
+                let newEndPos = initialResizePositions.current.endPos;
+
+                if (anchor.at[0] >= 1) {
+                  newEndPos.x =
+                    (pos.x + anchorOffset) / containerDimensions.width;
+                } else if (anchor.at[0] <= -1) {
+                  newStartPos.x =
+                    (pos.x + anchorOffset) / containerDimensions.width;
                 }
+
+                if (anchor.at[1] >= 1) {
+                  newEndPos.y =
+                    (pos.y + anchorOffset) / containerDimensions.height;
+                } else if (anchor.at[1] <= -1) {
+                  newStartPos.y =
+                    (pos.y + anchorOffset) / containerDimensions.height;
+                }
+
+                // if (anchor.pos === "bottom-right") {
+                //   newEndPos = {
+                //     x: (pos.x + anchorOffset) / containerDimensions.width,
+                //     y: (pos.y + anchorOffset) / containerDimensions.height,
+                //   };
+                // }
+
+                // const _newStartPos = {
+                //   ...newStartPos,
+                // };
+                // const _newEndPos = {
+                //   ...newEndPos,
+                // };
+
+                // if (newStartPos.x >= newEndPos.x) {
+                //   _newStartPos.x = newEndPos.x;
+                //   _newEndPos.x = startPos.x;
+                // }
+                // if (newStartPos.y >= newEndPos.y) {
+                //   _newStartPos.y = newEndPos.y;
+                //   _newEndPos.y = startPos.y;
+                // }
+
+                const _newStartPos = {
+                  x: Math.min(newStartPos.x, newEndPos.x),
+                  y: Math.min(newStartPos.y, newEndPos.y),
+                };
+                const _newEndPos = {
+                  x: Math.max(newStartPos.x, newEndPos.x),
+                  y: Math.max(newStartPos.y, newEndPos.y),
+                };
+                // console.log(newStartPos, _newStartPos, newEndPos, _newEndPos);
+
+                setStartPos(_newStartPos);
+                setEndPos(_newEndPos);
               }}
             />
           );
