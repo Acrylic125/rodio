@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn, resolveError } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import ImagePreview from "@/components/project/image-preview";
 import { StoreApi, UseBoundStore, create } from "zustand";
 import { RodioProject } from "@/lib/rodio";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/project/$path")({
   component: Project,
@@ -37,7 +38,7 @@ const labels = [
   },
 ] as const;
 
-export const useCurrentProject: UseBoundStore<
+export const useCurrentProjectStore: UseBoundStore<
   StoreApi<{
     project: RodioProject | null;
     loadStatus:
@@ -48,19 +49,12 @@ export const useCurrentProject: UseBoundStore<
           state: "error";
           message: string;
         };
-    imagePaths: null | string[];
     selectedImage: null | string;
     selectImage: (path: string) => void;
-    getImages: () => Promise<
-      {
-        path: string;
-      }[]
-    >;
-    loadProject: (path: string) => Promise<void>;
+    load: (path: string) => Promise<void>;
   }>
 > = create((set) => ({
   project: null,
-  imagePaths: null,
   loadStatus: {
     state: "idle",
   },
@@ -68,13 +62,7 @@ export const useCurrentProject: UseBoundStore<
   selectImage(path: string) {
     set({ selectedImage: path });
   },
-  async getImages() {
-    if (this.project === null) {
-      return [];
-    }
-    return this.project.images.getImages();
-  },
-  async loadProject(path: string) {
+  async load(path: string) {
     set({
       loadStatus: {
         state: "loading",
@@ -85,6 +73,7 @@ export const useCurrentProject: UseBoundStore<
       await project.load();
       set({ project, loadStatus: { state: "success" } });
     } catch (error) {
+      console.error(error);
       set({
         loadStatus: {
           state: "error",
@@ -97,16 +86,34 @@ export const useCurrentProject: UseBoundStore<
 }));
 
 function ImageList() {
-  const currentProject = useCurrentProject((state) => {
+  const currentProjectStore = useCurrentProjectStore((state) => {
     return {
-      getImages: state.getImages,
-      imagePaths: state.imagePaths,
+      project: state.project,
       selectedImage: state.selectedImage,
       selectImage: state.selectImage,
     };
   });
+  const imagesQuery = useQuery({
+    queryKey: ["project-images", currentProjectStore.project?.projectPath],
+    queryFn: async () => {
+      const project = currentProjectStore.project;
+      if (project === null) return [];
+      return project.images.getImages(project.projectPath);
+    },
+    enabled: currentProjectStore.project !== null,
+  });
 
-  if (currentProject.imagePaths === null) {
+  if (imagesQuery.isError) {
+    return (
+      <div className="flex flex-col gap-1 w-full p-4 items-center justify-center">
+        <p className="text-red-500 text-lg text-center">Error loading images</p>
+        <p className="text-gray-600 dark:text-gray-400 text-sm text-center">
+          {resolveError(imagesQuery.error)}
+        </p>
+      </div>
+    );
+  }
+  if (imagesQuery.data === undefined || imagesQuery.isPending) {
     return (
       <ul className="w-full p-2 select-none">
         {new Array(5).fill(null).map((_, i) => (
@@ -118,22 +125,23 @@ function ImageList() {
     );
   }
 
+  const imagePaths = imagesQuery.data.map((image) => image.path);
   return (
     <ul className="w-full p-2 select-none">
-      {currentProject.imagePaths.length > 0 ? (
-        currentProject.imagePaths.map((path) => (
+      {imagePaths.length > 0 ? (
+        imagePaths.map((path) => (
           <li
             key={path}
             className={cn(
               "p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
               {
                 "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
-                  path === currentProject.selectedImage,
+                  path === currentProjectStore.selectedImage,
                 "text-gray-700 dark:text-gray-300":
-                  path !== currentProject.selectedImage,
+                  path !== currentProjectStore.selectedImage,
               }
             )}
-            onClick={() => currentProject.selectImage(path)}
+            onClick={() => currentProjectStore.selectImage(path)}
           >
             {path.split("/").pop()}
           </li>
@@ -148,39 +156,68 @@ function ImageList() {
 }
 
 function Project() {
-  const { path } = Route.useParams();
-  const [currentPath, setCurrentPath] = useState<string | null>(null);
-  const currentProject = useCurrentProject((state) => {
+  const { path: _path } = Route.useParams();
+  const path = useMemo(() => decodeURIComponent(_path), [_path]);
+  const currentProjectStore = useCurrentProjectStore((state) => {
     return {
+      selectedImage: state.selectedImage,
       project: state.project,
-      initProject: state.loadProject,
+      loadStatus: state.loadStatus,
+      load: state.load,
     };
   });
   useEffect(() => {
-    if (currentProject.project === null) {
-      // currentProject.initProject(path);
-      // setCurrentPath(paths[0]);
+    if (currentProjectStore.project === null) {
+      currentProjectStore.load(path);
     }
-  }, [
-    currentProject.project,
-    currentProject.initProject,
-    path,
-    setCurrentPath,
-  ]);
+  }, [currentProjectStore.project, currentProjectStore.load, path]);
+
+  let imagePreview = null;
+  if (currentProjectStore.loadStatus.state === "success") {
+    if (currentProjectStore.selectedImage !== null) {
+      imagePreview = (
+        <ImagePreview currentPath={currentProjectStore.selectedImage} />
+      );
+    } else {
+      imagePreview = (
+        <div className="flex flex-col gap-1">
+          <h2 className="text-gray-950 dark:text-gray-50 text-lg font-medium text-center">
+            No image selected
+          </h2>
+          <h2 className="text-gray-500 dark:text-gray-500 font-medium text-center">
+            Select an image from the "Files" section.
+          </h2>
+        </div>
+      );
+    }
+  } else if (currentProjectStore.loadStatus.state === "error") {
+    imagePreview = (
+      <div className="flex flex-col gap-1">
+        <h2 className="text-red-500 text-lg font-medium text-center">
+          Error loading project
+        </h2>
+        <h2 className="text-gray-500 dark:text-gray-500 font-medium text-center">
+          {currentProjectStore.loadStatus.message}
+        </h2>
+      </div>
+    );
+  } else {
+    imagePreview = <Loader2 className="animate-spin w-8 h-8" />;
+  }
 
   return (
     <main className="flex flex-col items-center bg-background w-screen h-svh">
       <nav className="flex flex-row items-center w-full h-12 border-b border-gray-300 dark:border-gray-700 px-3">
-        {currentProject.project === null ? (
+        {currentProjectStore.project === null ? (
           <Skeleton className="w-32 h-4" />
         ) : (
-          <h1>{currentProject.project.config.values.name}</h1>
+          <h1>{currentProjectStore.project.config.values.name}</h1>
         )}
       </nav>
       <div className="w-full h-[calc(100svh-3rem)] flex flex-row">
         <section className="w-full h-[calc(100svh-3rem)] max-w-64 overflow-auto relative">
           <div className="flex flex-col gap-2 sticky w-full border-b bg-background/75 backdrop-blur-md border-gray-300 dark:border-gray-700 top-0 p-3">
-            <h2 className="text-gray-500 font-medium select-none">FILES</h2>
+            <h2 className="text-gray-500 font-medium">FILES</h2>
             <div className="flex flex-row gap-2">
               <Input placeholder="Search" />
               <Button
@@ -194,11 +231,7 @@ function Project() {
           <ImageList />
         </section>
         <div className="relative w-full h-full bg-black flex items-center justify-center border-x border-gray-300 dark:border-gray-700">
-          {currentPath !== null ? (
-            <ImagePreview currentPath={currentPath} />
-          ) : (
-            <Loader2 className="animate-spin w-8 h-8" />
-          )}
+          {imagePreview}
         </div>
         <section className="w-full h-[calc(100svh-3rem)] max-w-64 overflow-auto relative">
           <h2 className="text-gray-500 font-medium p-2 border-b border-gray-300 dark:border-gray-700 select-none">
