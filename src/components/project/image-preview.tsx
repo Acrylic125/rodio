@@ -136,6 +136,9 @@ function LabelBox({
     startPos: Pos;
     endPos: Pos;
   }>();
+  const [resizeRotation, setResizeRotation] = useState<[1 | -1, 1 | -1]>([
+    1, 1,
+  ]);
 
   const x = startPos.x * containerDimensions.width;
   const y = startPos.y * containerDimensions.height;
@@ -177,15 +180,20 @@ function LabelBox({
           const anchorOffset = labelAnchorSize / 2;
           // const anchorOffset = 0;
 
-          if (anchor.at[0] >= 1) {
+          const tranformedAnchorAt = [
+            anchor.at[0] * resizeRotation[0],
+            anchor.at[1] * resizeRotation[1],
+          ];
+
+          if (tranformedAnchorAt[0] >= 1) {
             anchorX = x + width - anchorOffset;
-          } else if (anchor.at[0] <= -1) {
+          } else if (tranformedAnchorAt[0] <= -1) {
             anchorX = x - anchorOffset;
           }
 
-          if (anchor.at[1] >= 1) {
+          if (tranformedAnchorAt[1] >= 1) {
             anchorY = y + height - anchorOffset;
-          } else if (anchor.at[1] <= -1) {
+          } else if (tranformedAnchorAt[1] <= -1) {
             anchorY = y - anchorOffset;
           }
 
@@ -201,7 +209,7 @@ function LabelBox({
               strokeWidth={1}
               draggable
               onDragStart={() => {
-                console.log("start");
+                console.log("Start");
                 initialResizePositions.current = {
                   startPos,
                   endPos,
@@ -209,54 +217,33 @@ function LabelBox({
               }}
               onDragEnd={() => {
                 initialResizePositions.current = undefined;
+                setResizeRotation([1, 1]);
               }}
               onDragMove={(e) => {
                 if (!initialResizePositions.current) return;
                 const anchorOffset = labelAnchorSize / 2;
                 const pos = e.target.position();
-                // e.target.position(pos);
 
                 let newStartPos = initialResizePositions.current.startPos;
                 let newEndPos = initialResizePositions.current.endPos;
 
-                if (anchor.at[0] >= 1) {
+                const tranformedAnchorAt = anchor.at;
+
+                if (tranformedAnchorAt[0] >= 1) {
                   newEndPos.x =
                     (pos.x + anchorOffset) / containerDimensions.width;
-                } else if (anchor.at[0] <= -1) {
+                } else if (tranformedAnchorAt[0] <= -1) {
                   newStartPos.x =
                     (pos.x + anchorOffset) / containerDimensions.width;
                 }
 
-                if (anchor.at[1] >= 1) {
+                if (tranformedAnchorAt[1] >= 1) {
                   newEndPos.y =
                     (pos.y + anchorOffset) / containerDimensions.height;
-                } else if (anchor.at[1] <= -1) {
+                } else if (tranformedAnchorAt[1] <= -1) {
                   newStartPos.y =
                     (pos.y + anchorOffset) / containerDimensions.height;
                 }
-
-                // if (anchor.pos === "bottom-right") {
-                //   newEndPos = {
-                //     x: (pos.x + anchorOffset) / containerDimensions.width,
-                //     y: (pos.y + anchorOffset) / containerDimensions.height,
-                //   };
-                // }
-
-                // const _newStartPos = {
-                //   ...newStartPos,
-                // };
-                // const _newEndPos = {
-                //   ...newEndPos,
-                // };
-
-                // if (newStartPos.x >= newEndPos.x) {
-                //   _newStartPos.x = newEndPos.x;
-                //   _newEndPos.x = startPos.x;
-                // }
-                // if (newStartPos.y >= newEndPos.y) {
-                //   _newStartPos.y = newEndPos.y;
-                //   _newEndPos.y = startPos.y;
-                // }
 
                 const _newStartPos = {
                   x: Math.min(newStartPos.x, newEndPos.x),
@@ -266,10 +253,13 @@ function LabelBox({
                   x: Math.max(newStartPos.x, newEndPos.x),
                   y: Math.max(newStartPos.y, newEndPos.y),
                 };
-                // console.log(newStartPos, _newStartPos, newEndPos, _newEndPos);
 
                 setStartPos(_newStartPos);
                 setEndPos(_newEndPos);
+                setResizeRotation([
+                  newEndPos.x >= newStartPos.x ? 1 : -1,
+                  newEndPos.y >= newStartPos.y ? 1 : -1,
+                ]);
               }}
             />
           );
