@@ -3,7 +3,7 @@ import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { KonvaEventObject } from "konva/lib/Node";
 import { type Rect as RectType } from "konva/lib/shapes/Rect";
 import { type Transformer as TransformerType } from "konva/lib/shapes/Transformer";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Stage,
   Layer,
@@ -31,42 +31,42 @@ const borderSelectedWidth = 2;
 const labelBoxAnchors = [
   {
     pos: "top-left",
-    cursor: "diagonal",
+    cursor: "nwse-resize",
     at: [-1, -1],
   },
   {
     pos: "top",
-    cursor: "vertical",
+    cursor: "ns-resize",
     at: [0, -1],
   },
   {
     pos: "top-right",
-    cursor: "diagonal",
+    cursor: "nesw-resize",
     at: [1, -1],
   },
   {
     pos: "right",
-    cursor: "horizontal",
+    cursor: "ew-resize",
     at: [1, 0],
   },
   {
     pos: "bottom-right",
-    cursor: "diagonal",
+    cursor: "nwse-resize",
     at: [1, 1],
   },
   {
     pos: "bottom",
-    cursor: "vertical",
+    cursor: "ns-resize",
     at: [0, 1],
   },
   {
     pos: "bottom-left",
-    cursor: "diagonal",
+    cursor: "nesw-resize",
     at: [-1, 1],
   },
   {
     pos: "left",
-    cursor: "horizontal",
+    cursor: "ew-resize",
     at: [-1, 0],
   },
 ] as const;
@@ -176,9 +176,9 @@ function LabelBox({
       />
       {isSelected &&
         labelBoxAnchors.map((anchor) => {
-          let anchorX = x + width / 2;
-          let anchorY = y + height / 2;
           const anchorOffset = labelAnchorSize / 2;
+          let anchorX = x + width / 2 - anchorOffset;
+          let anchorY = y + height / 2 - anchorOffset;
           // const anchorOffset = 0;
 
           const tranformedAnchorAt = [
@@ -209,15 +209,35 @@ function LabelBox({
               stroke="#0ea5e9"
               strokeWidth={1}
               draggable
-              onDragStart={() => {
+              onMouseEnter={(e) => {
+                const stage = e.target.getStage();
+                if (!stage) return;
+                const container = stage.container();
+                container.style.cursor = anchor.cursor;
+              }}
+              onMouseLeave={(e) => {
+                const stage = e.target.getStage();
+                if (!stage) return;
+                const container = stage.container();
+                container.style.cursor = "default";
+              }}
+              onDragStart={(e) => {
                 initialResizePositions.current = {
                   startPos,
                   endPos,
                 };
+                const stage = e.target.getStage();
+                if (!stage) return;
+                const container = stage.container();
+                container.style.cursor = anchor.cursor;
               }}
-              onDragEnd={() => {
+              onDragEnd={(e) => {
                 initialResizePositions.current = undefined;
                 setResizeRotation([1, 1]);
+                const stage = e.target.getStage();
+                if (!stage) return;
+                const container = stage.container();
+                container.style.cursor = "default";
               }}
               onDragMove={(e) => {
                 if (!initialResizePositions.current) return;
@@ -282,6 +302,12 @@ function LabelBox({
     </Group>
   );
 }
+
+// const PreviewStageContext = React.createContext<{
+//   cursor: "default" | "";
+// }>({
+//   containerDimensions: { width: 0, height: 0 },
+// });
 
 export default function ImagePreview({ currentPath }: { currentPath: string }) {
   const imageRef = useRef<HTMLImageElement>(null);

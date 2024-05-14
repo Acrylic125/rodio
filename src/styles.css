@@ -73,15 +73,16 @@ body {
 
 @layer base {
   * {
-    @apply border-border select-none cursor-default;
+    @apply border-border select-none;
   }
 
-  a {
-    @apply cursor-pointer;
-  }
-
-  input {
-    @apply cursor-text;
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    @apply cursor-default;
   }
 
   body {
