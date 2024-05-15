@@ -1,5 +1,6 @@
 import { clamp } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { on } from "events";
 import { KonvaEventObject } from "konva/lib/Node";
 import { type Rect as RectType } from "konva/lib/shapes/Rect";
 import { type Transformer as TransformerType } from "konva/lib/shapes/Transformer";
@@ -71,84 +72,40 @@ const labelBoxAnchors = [
   },
 ] as const;
 
-function LabelBox({
+function ResizableRect({
+  x,
+  y,
+  width,
+  height,
   isSelected,
-  id,
-  onRequestSelect,
-  onResize,
-  containerDimensions,
-  defaultStartPos,
-  defaultEndPos,
+  resizeRotation,
+  onAnchorDragStart,
+  onAnchorDragMove,
+  onAnchorDragEnd,
+  children,
 }: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   isSelected: boolean;
-  id: string;
-  onRequestSelect: (id: string) => void;
-  onResize: (id: string, start: Pos, end: Pos) => void;
-  containerDimensions: { width: number; height: number };
-  // Resync position with defaults by updating the key of the component.
-  defaultStartPos: Pos;
-  defaultEndPos: Pos;
-}) {
-  const ref = useRef<RectType | null>(null);
-  const transformerRef = useRef<TransformerType | null>(null);
-  const [startPos, setStartPos] = useState<Pos>(defaultStartPos);
-  const [endPos, setEndPos] = useState<Pos>(defaultEndPos);
-  const _onRequestSelect = useCallback(() => {
-    onRequestSelect(id);
-  }, [onRequestSelect, id]);
-
-  useEffect(() => {
-    if (!ref.current || !transformerRef.current) return;
-    if (!isSelected) return;
-    transformerRef.current.setNodes([ref.current]);
-    transformerRef.current.getLayer()?.batchDraw();
-  }, [ref.current, transformerRef.current, isSelected]);
-
-  const handleDrag = (
+  resizeRotation?: [1 | -1, 1 | -1];
+  onAnchorDragStart?: (
     e: KonvaEventObject<DragEvent>,
-    triggerOnResize: boolean
-  ) => {
-    const pos = e.target.position();
-    const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
-    const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
-
-    const start = {
-      x: clamp(pos.x, 0, containerDimensions.width - width),
-      y: clamp(pos.y, 0, containerDimensions.height - height),
-    };
-    const newStartPos = {
-      x: start.x / containerDimensions.width,
-      y: start.y / containerDimensions.height,
-    };
-    const newEndPos = {
-      x: (start.x + width) / containerDimensions.width,
-      y: (start.y + height) / containerDimensions.height,
-    };
-
-    e.target.position(start);
-    setStartPos(newStartPos);
-    setEndPos(newEndPos);
-    if (triggerOnResize) {
-      onResize(id, newStartPos, newEndPos);
-    }
-  };
-
-  const initialResizePositions = useRef<{
-    startPos: Pos;
-    endPos: Pos;
-  }>();
-  const [resizeRotation, setResizeRotation] = useState<[1 | -1, 1 | -1]>([
-    1, 1,
-  ]);
-
-  const x = startPos.x * containerDimensions.width;
-  const y = startPos.y * containerDimensions.height;
-  const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
-  const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
-
+    anchor: (typeof labelBoxAnchors)[number]
+  ) => void;
+  onAnchorDragMove?: (
+    e: KonvaEventObject<DragEvent>,
+    anchor: (typeof labelBoxAnchors)[number]
+  ) => void;
+  onAnchorDragEnd?: (
+    e: KonvaEventObject<DragEvent>,
+    anchor: (typeof labelBoxAnchors)[number]
+  ) => void;
+  children: React.ReactNode;
+}) {
   return (
-    <Group onTap={_onRequestSelect} onMouseDown={_onRequestSelect}>
-      {/* <Rect /> */}
+    <>
       {isSelected && (
         <Rect
           x={x - borderSelectedWidth}
@@ -159,31 +116,16 @@ function LabelBox({
           strokeWidth={borderSelectedWidth}
         />
       )}
-      <Rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        fill="#ff00004f"
-        stroke="#ff0000"
-        strokeWidth={4}
-        draggable
-        ref={ref}
-        onDragEnd={(e) => handleDrag(e, true)}
-        onDragMove={(e) => handleDrag(e, false)}
-        // onTransformEnd={() => handleTransform(false)}
-        // onTransform={() => handleTransform(false)}
-      />
+      {children}
       {isSelected &&
         labelBoxAnchors.map((anchor) => {
           const anchorOffset = labelAnchorSize / 2;
           let anchorX = x + width / 2 - anchorOffset;
           let anchorY = y + height / 2 - anchorOffset;
-          // const anchorOffset = 0;
 
           const tranformedAnchorAt = [
-            anchor.at[0] * resizeRotation[0],
-            anchor.at[1] * resizeRotation[1],
+            anchor.at[0] * (resizeRotation?.[0] ?? 1),
+            anchor.at[1] * (resizeRotation?.[1] ?? 1),
           ];
 
           if (tranformedAnchorAt[0] >= 1) {
@@ -222,94 +164,187 @@ function LabelBox({
                 container.style.cursor = "default";
               }}
               onDragStart={(e) => {
-                initialResizePositions.current = {
-                  startPos,
-                  endPos,
-                };
-                const stage = e.target.getStage();
-                if (!stage) return;
-                const container = stage.container();
-                container.style.cursor = anchor.cursor;
+                onAnchorDragStart?.(e, anchor);
               }}
               onDragEnd={(e) => {
-                initialResizePositions.current = undefined;
-                setResizeRotation([1, 1]);
-                const stage = e.target.getStage();
-                if (!stage) return;
-                const container = stage.container();
-                container.style.cursor = "default";
+                onAnchorDragEnd?.(e, anchor);
               }}
               onDragMove={(e) => {
-                if (!initialResizePositions.current) return;
-                const anchorOffset = labelAnchorSize / 2;
-                const pos = e.target.position();
-
-                let newStartPos = initialResizePositions.current.startPos;
-                let newEndPos = initialResizePositions.current.endPos;
-
-                const tranformedAnchorAt = anchor.at;
-
-                if (tranformedAnchorAt[0] >= 1) {
-                  newEndPos.x =
-                    (pos.x + anchorOffset) / containerDimensions.width;
-                } else if (tranformedAnchorAt[0] <= -1) {
-                  newStartPos.x =
-                    (pos.x + anchorOffset) / containerDimensions.width;
-                }
-
-                if (tranformedAnchorAt[1] >= 1) {
-                  newEndPos.y =
-                    (pos.y + anchorOffset) / containerDimensions.height;
-                } else if (tranformedAnchorAt[1] <= -1) {
-                  newStartPos.y =
-                    (pos.y + anchorOffset) / containerDimensions.height;
-                }
-
-                const _newStartPos = {
-                  x: clamp(Math.min(newStartPos.x, newEndPos.x), 0, 1),
-                  y: clamp(Math.min(newStartPos.y, newEndPos.y), 0, 1),
-                };
-                const _newEndPos = {
-                  x: clamp(Math.max(newStartPos.x, newEndPos.x), 0, 1),
-                  y: clamp(Math.max(newStartPos.y, newEndPos.y), 0, 1),
-                };
-
-                setStartPos(_newStartPos);
-                setEndPos(_newEndPos);
-                setResizeRotation([
-                  newEndPos.x >= newStartPos.x ? 1 : -1,
-                  newEndPos.y >= newStartPos.y ? 1 : -1,
-                ]);
+                onAnchorDragMove?.(e, anchor);
               }}
             />
           );
         })}
-      {/* {isSelected && (
-        <Transformer
-          ref={transformerRef}
-          rotateEnabled={false}
-          flipEnabled={false}
-          // anchorDragBoundFunc={(oldPos, newPos) => {
-          //   console.log(newPos);
-          //   return {
-          //     x: Math.max(Math.min(newPos.x, containerDimensions.width), 0),
-          //     // y: 0,
-          //     y: Math.max(Math.min(newPos.y, containerDimensions.height), 0),
-          //   };
-          // }}
+    </>
+  );
+}
+
+function LabelBox({
+  isSelected,
+  id,
+  onRequestSelect,
+  onResize,
+  containerDimensions,
+  defaultStartPos,
+  defaultEndPos,
+}: {
+  isSelected: boolean;
+  id: string;
+  onRequestSelect?: (id: string) => void;
+  onResize?: (id: string, start: Pos, end: Pos) => void;
+  containerDimensions: { width: number; height: number };
+  // Resync position with defaults by updating the key of the component.
+  defaultStartPos: Pos;
+  defaultEndPos: Pos;
+}) {
+  const ref = useRef<RectType | null>(null);
+  const transformerRef = useRef<TransformerType | null>(null);
+  const [startPos, setStartPos] = useState<Pos>(defaultStartPos);
+  const [endPos, setEndPos] = useState<Pos>(defaultEndPos);
+  const _onRequestSelect = useCallback(() => {
+    onRequestSelect?.(id);
+  }, [onRequestSelect, id]);
+
+  useEffect(() => {
+    if (!ref.current || !transformerRef.current) return;
+    if (!isSelected) return;
+    transformerRef.current.setNodes([ref.current]);
+    transformerRef.current.getLayer()?.batchDraw();
+  }, [ref.current, transformerRef.current, isSelected]);
+
+  const handleDrag = (
+    e: KonvaEventObject<DragEvent>,
+    triggerOnResize: boolean
+  ) => {
+    const pos = e.target.position();
+    const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
+    const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
+
+    const start = {
+      x: clamp(pos.x, 0, containerDimensions.width - width),
+      y: clamp(pos.y, 0, containerDimensions.height - height),
+    };
+    const newStartPos = {
+      x: start.x / containerDimensions.width,
+      y: start.y / containerDimensions.height,
+    };
+    const newEndPos = {
+      x: (start.x + width) / containerDimensions.width,
+      y: (start.y + height) / containerDimensions.height,
+    };
+
+    e.target.position(start);
+    setStartPos(newStartPos);
+    setEndPos(newEndPos);
+    if (triggerOnResize) {
+      onResize?.(id, newStartPos, newEndPos);
+    }
+  };
+
+  const initialResizePositions = useRef<{
+    startPos: Pos;
+    endPos: Pos;
+  }>();
+  const [resizeRotation, setResizeRotation] = useState<[1 | -1, 1 | -1]>([
+    1, 1,
+  ]);
+
+  const x = startPos.x * containerDimensions.width;
+  const y = startPos.y * containerDimensions.height;
+  const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
+  const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
+
+  return (
+    <Group onTap={_onRequestSelect} onMouseDown={_onRequestSelect}>
+      <ResizableRect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        isSelected={isSelected}
+        onAnchorDragStart={(e, anchor) => {
+          initialResizePositions.current = {
+            startPos,
+            endPos,
+          };
+          const stage = e.target.getStage();
+          if (!stage) return;
+          const container = stage.container();
+          container.style.cursor = anchor.cursor;
+        }}
+        onAnchorDragEnd={(e) => {
+          initialResizePositions.current = undefined;
+          setResizeRotation([1, 1]);
+          const stage = e.target.getStage();
+          if (!stage) return;
+          const container = stage.container();
+          container.style.cursor = "default";
+        }}
+        onAnchorDragMove={(e, anchor) => {
+          if (!initialResizePositions.current) return;
+          const anchorOffset = labelAnchorSize / 2;
+          const pos = e.target.position();
+
+          let newStartPos = initialResizePositions.current.startPos;
+          let newEndPos = initialResizePositions.current.endPos;
+
+          const tranformedAnchorAt = anchor.at;
+
+          if (tranformedAnchorAt[0] >= 1) {
+            newEndPos.x = (pos.x + anchorOffset) / containerDimensions.width;
+          } else if (tranformedAnchorAt[0] <= -1) {
+            newStartPos.x = (pos.x + anchorOffset) / containerDimensions.width;
+          }
+
+          if (tranformedAnchorAt[1] >= 1) {
+            newEndPos.y = (pos.y + anchorOffset) / containerDimensions.height;
+          } else if (tranformedAnchorAt[1] <= -1) {
+            newStartPos.y = (pos.y + anchorOffset) / containerDimensions.height;
+          }
+
+          const _newStartPos = {
+            x: clamp(Math.min(newStartPos.x, newEndPos.x), 0, 1),
+            y: clamp(Math.min(newStartPos.y, newEndPos.y), 0, 1),
+          };
+          const _newEndPos = {
+            x: clamp(Math.max(newStartPos.x, newEndPos.x), 0, 1),
+            y: clamp(Math.max(newStartPos.y, newEndPos.y), 0, 1),
+          };
+
+          setStartPos(_newStartPos);
+          setEndPos(_newEndPos);
+          setResizeRotation([
+            newEndPos.x >= newStartPos.x ? 1 : -1,
+            newEndPos.y >= newStartPos.y ? 1 : -1,
+          ]);
+        }}
+        resizeRotation={resizeRotation}
+      >
+        <Rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill="#ff00004f"
+          stroke="#ff0000"
+          strokeWidth={4}
+          draggable
+          ref={ref}
+          onDragEnd={(e) => handleDrag(e, true)}
+          onDragMove={(e) => handleDrag(e, false)}
         />
-      )} */}
+      </ResizableRect>
     </Group>
   );
 }
 
-// const PreviewStageContext = React.createContext<{
-//   cursor: "default" | "";
-// }>({
-//   containerDimensions: { width: 0, height: 0 },
-// });
-
-export default function ImagePreview({ currentPath }: { currentPath: string }) {
+export default function ImagePreview({
+  currentPath,
+  mode,
+}: {
+  currentPath: string;
+  mode: "label" | "view";
+}) {
   const imageRef = useRef<HTMLImageElement>(null);
   const [imageContainerSize, setImageContainerSize] = useState({
     width: 0,
@@ -408,6 +443,10 @@ export default function ImagePreview({ currentPath }: { currentPath: string }) {
     },
     [setLabels]
   );
+  const [newLabel, setNewLabel] = useState<{
+    start: Pos;
+    end: Pos;
+  } | null>(null);
 
   return (
     <>
