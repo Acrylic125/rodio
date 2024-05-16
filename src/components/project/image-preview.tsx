@@ -1,12 +1,12 @@
-import { clamp } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { KonvaEventObject } from "konva/lib/Node";
-import { type Rect as RectType } from "konva/lib/shapes/Rect";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Stage, Layer, Rect, Group } from "react-konva";
-import { on } from "stream";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Stage, Layer } from "react-konva";
+import { cn } from "@/lib/utils";
+import { Pos, labelBoxAnchors } from "./label-anchors";
+import { NewLabelBox } from "./new-label-box";
+import { LabelBox } from "./label-box";
 
-type Pos = { x: number; y: number };
 type Label = {
   id: string;
   class: string;
@@ -14,355 +14,24 @@ type Label = {
   end: Pos;
 };
 
-const labelAnchorSize = 12;
-const borderSelectedWidth = 2;
-/**
- * [-1, -1] [0, -1] [1, -1]
- * [-1, 0]         [1, 0]
- * [-1, 1] [0, 1] [1, 1]
- */
-const labelBoxAnchors = [
-  {
-    pos: "top-left",
-    cursor: "nwse-resize",
-    at: [-1, -1],
-  },
-  {
-    pos: "top",
-    cursor: "ns-resize",
-    at: [0, -1],
-  },
-  {
-    pos: "top-right",
-    cursor: "nesw-resize",
-    at: [1, -1],
-  },
-  {
-    pos: "right",
-    cursor: "ew-resize",
-    at: [1, 0],
-  },
-  {
-    pos: "bottom-right",
-    cursor: "nwse-resize",
-    at: [1, 1],
-  },
-  {
-    pos: "bottom",
-    cursor: "ns-resize",
-    at: [0, 1],
-  },
-  {
-    pos: "bottom-left",
-    cursor: "nesw-resize",
-    at: [-1, 1],
-  },
-  {
-    pos: "left",
-    cursor: "ew-resize",
-    at: [-1, 0],
-  },
-] as const;
+function useImagePreviewCursors({ mode }: { mode: "label" | "view" }) {
+  const [labelSuggestedCursor, setLabelSuggestedCursor] = useState<
+    (typeof labelBoxAnchors)[number]["cursor"] | null
+  >(null);
 
-function ResizableRect({
-  x,
-  y,
-  width,
-  height,
-  isSelected,
-  resizeRotation,
-  onAnchorMouseEnter,
-  onAnchorMouseLeave,
-  onAnchorDragStart,
-  onAnchorDragMove,
-  onAnchorDragEnd,
-  children,
-}: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  isSelected: boolean;
-  resizeRotation?: [1 | -1, 1 | -1];
-  onAnchorMouseEnter?: (
-    e: KonvaEventObject<MouseEvent>,
-    anchor: (typeof labelBoxAnchors)[number]
-  ) => void;
-  onAnchorMouseLeave?: (
-    e: KonvaEventObject<MouseEvent>,
-    anchor: (typeof labelBoxAnchors)[number]
-  ) => void;
-  onAnchorDragStart?: (
-    e: KonvaEventObject<DragEvent>,
-    anchor: (typeof labelBoxAnchors)[number]
-  ) => void;
-  onAnchorDragMove?: (
-    e: KonvaEventObject<DragEvent>,
-    anchor: (typeof labelBoxAnchors)[number]
-  ) => void;
-  onAnchorDragEnd?: (
-    e: KonvaEventObject<DragEvent>,
-    anchor: (typeof labelBoxAnchors)[number]
-  ) => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <>
-      {isSelected && (
-        <Rect
-          x={x - borderSelectedWidth}
-          y={y - borderSelectedWidth}
-          width={width + borderSelectedWidth * 2}
-          height={height + borderSelectedWidth * 2}
-          stroke="#0ea5e9"
-          strokeWidth={borderSelectedWidth}
-        />
-      )}
-      {children}
-      {isSelected &&
-        labelBoxAnchors.map((anchor) => {
-          const anchorOffset = labelAnchorSize / 2;
-          let anchorX = x + width / 2 - anchorOffset;
-          let anchorY = y + height / 2 - anchorOffset;
+  let cursor:
+    | (typeof labelBoxAnchors)[number]["cursor"]
+    | "crosshair"
+    | "default" = mode === "label" ? "crosshair" : ("default" as const);
+  if (labelSuggestedCursor !== null) {
+    cursor = labelSuggestedCursor;
+  }
 
-          const tranformedAnchorAt = [
-            anchor.at[0] * (resizeRotation?.[0] ?? 1),
-            anchor.at[1] * (resizeRotation?.[1] ?? 1),
-          ];
-
-          if (tranformedAnchorAt[0] >= 1) {
-            anchorX = x + width - anchorOffset;
-          } else if (tranformedAnchorAt[0] <= -1) {
-            anchorX = x - anchorOffset;
-          }
-
-          if (tranformedAnchorAt[1] >= 1) {
-            anchorY = y + height - anchorOffset;
-          } else if (tranformedAnchorAt[1] <= -1) {
-            anchorY = y - anchorOffset;
-          }
-
-          return (
-            <Rect
-              key={anchor.pos}
-              x={anchorX}
-              y={anchorY}
-              width={labelAnchorSize}
-              height={labelAnchorSize}
-              fill="#e0f2fe"
-              stroke="#0ea5e9"
-              strokeWidth={1}
-              draggable
-              onMouseEnter={(e) => {
-                onAnchorMouseEnter?.(e, anchor);
-                // const stage = e.target.getStage();
-                // if (!stage) return;
-                // const container = stage.container();
-                // container.style.cursor = anchor.cursor;
-              }}
-              onMouseLeave={(e) => {
-                onAnchorMouseEnter?.(e, anchor);
-                // const stage = e.target.getStage();
-                // if (!stage) return;
-                // const container = stage.container();
-                // container.style.cursor = "default";
-              }}
-              onDragStart={(e) => {
-                onAnchorDragStart?.(e, anchor);
-              }}
-              onDragEnd={(e) => {
-                onAnchorDragEnd?.(e, anchor);
-              }}
-              onDragMove={(e) => {
-                onAnchorDragMove?.(e, anchor);
-              }}
-            />
-          );
-        })}
-    </>
-  );
-}
-
-function LabelBox({
-  isSelected,
-  id,
-  onRequestSelect,
-  onResize,
-  containerDimensions,
-  defaultStartPos,
-  defaultEndPos,
-}: {
-  isSelected: boolean;
-  id: string;
-  onRequestSelect?: (id: string) => void;
-  onResize?: (id: string, start: Pos, end: Pos) => void;
-  containerDimensions: { width: number; height: number };
-  // Resync position with defaults by updating the key of the component.
-  defaultStartPos: Pos;
-  defaultEndPos: Pos;
-}) {
-  const ref = useRef<RectType | null>(null);
-  const [startPos, setStartPos] = useState<Pos>(defaultStartPos);
-  const [endPos, setEndPos] = useState<Pos>(defaultEndPos);
-  const _onRequestSelect = useCallback(() => {
-    onRequestSelect?.(id);
-  }, [onRequestSelect, id]);
-
-  const handleDrag = (
-    e: KonvaEventObject<DragEvent>,
-    triggerOnResize: boolean
-  ) => {
-    const pos = e.target.position();
-    const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
-    const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
-
-    const start = {
-      x: clamp(pos.x, 0, containerDimensions.width - width),
-      y: clamp(pos.y, 0, containerDimensions.height - height),
-    };
-    const newStartPos = {
-      x: start.x / containerDimensions.width,
-      y: start.y / containerDimensions.height,
-    };
-    const newEndPos = {
-      x: (start.x + width) / containerDimensions.width,
-      y: (start.y + height) / containerDimensions.height,
-    };
-
-    e.target.position(start);
-    setStartPos(newStartPos);
-    setEndPos(newEndPos);
-    if (triggerOnResize) {
-      onResize?.(id, newStartPos, newEndPos);
-    }
+  return {
+    cursor,
+    labelSuggestedCursor,
+    setLabelSuggestedCursor,
   };
-
-  const initialResizePositions = useRef<{
-    startPos: Pos;
-    endPos: Pos;
-  }>();
-  const [resizeRotation, setResizeRotation] = useState<[1 | -1, 1 | -1]>([
-    1, 1,
-  ]);
-
-  const x = startPos.x * containerDimensions.width;
-  const y = startPos.y * containerDimensions.height;
-  const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
-  const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
-
-  return (
-    <Group onTap={_onRequestSelect} onMouseDown={_onRequestSelect}>
-      <ResizableRect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        isSelected={isSelected}
-        onAnchorDragStart={(e, anchor) => {
-          initialResizePositions.current = {
-            startPos,
-            endPos,
-          };
-          const stage = e.target.getStage();
-          if (!stage) return;
-          const container = stage.container();
-          container.style.cursor = anchor.cursor;
-        }}
-        onAnchorDragEnd={(e) => {
-          initialResizePositions.current = undefined;
-          setResizeRotation([1, 1]);
-          const stage = e.target.getStage();
-          if (!stage) return;
-          const container = stage.container();
-          container.style.cursor = "default";
-        }}
-        onAnchorDragMove={(e, anchor) => {
-          if (!initialResizePositions.current) return;
-          const anchorOffset = labelAnchorSize / 2;
-          const pos = e.target.position();
-
-          let newStartPos = initialResizePositions.current.startPos;
-          let newEndPos = initialResizePositions.current.endPos;
-
-          const tranformedAnchorAt = anchor.at;
-
-          if (tranformedAnchorAt[0] >= 1) {
-            newEndPos.x = (pos.x + anchorOffset) / containerDimensions.width;
-          } else if (tranformedAnchorAt[0] <= -1) {
-            newStartPos.x = (pos.x + anchorOffset) / containerDimensions.width;
-          }
-
-          if (tranformedAnchorAt[1] >= 1) {
-            newEndPos.y = (pos.y + anchorOffset) / containerDimensions.height;
-          } else if (tranformedAnchorAt[1] <= -1) {
-            newStartPos.y = (pos.y + anchorOffset) / containerDimensions.height;
-          }
-
-          const _newStartPos = {
-            x: clamp(Math.min(newStartPos.x, newEndPos.x), 0, 1),
-            y: clamp(Math.min(newStartPos.y, newEndPos.y), 0, 1),
-          };
-          const _newEndPos = {
-            x: clamp(Math.max(newStartPos.x, newEndPos.x), 0, 1),
-            y: clamp(Math.max(newStartPos.y, newEndPos.y), 0, 1),
-          };
-
-          setStartPos(_newStartPos);
-          setEndPos(_newEndPos);
-          setResizeRotation([
-            newEndPos.x >= newStartPos.x ? 1 : -1,
-            newEndPos.y >= newStartPos.y ? 1 : -1,
-          ]);
-        }}
-        resizeRotation={resizeRotation}
-      >
-        <Rect
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fill="#ff00004f"
-          stroke="#ff0000"
-          strokeWidth={4}
-          draggable
-          ref={ref}
-          onDragEnd={(e) => handleDrag(e, true)}
-          onDragMove={(e) => handleDrag(e, false)}
-        />
-      </ResizableRect>
-    </Group>
-  );
-}
-
-function NewLabelBox({
-  pos1,
-  pos2,
-  containerDimensions,
-}: {
-  pos1: Pos;
-  pos2: Pos;
-  containerDimensions: { width: number; height: number };
-}) {
-  const x = Math.min(pos1.x, pos2.x) * containerDimensions.width;
-  const y = Math.min(pos1.y, pos2.y) * containerDimensions.height;
-  const width = Math.abs(pos2.x - pos1.x) * containerDimensions.width;
-  const height = Math.abs(pos2.y - pos1.y) * containerDimensions.height;
-
-  return (
-    <Group>
-      <ResizableRect x={x} y={y} width={width} height={height} isSelected>
-        <Rect
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fill="#ff00004f"
-          stroke="#ff0000"
-          strokeWidth={4}
-        />
-      </ResizableRect>
-    </Group>
-  );
 }
 
 export default function ImagePreview({
@@ -497,7 +166,7 @@ export default function ImagePreview({
         });
         return newLabels;
       });
-      setFocusedLabel(null);
+      setFocusedLabel(id);
       setNewLabel(null);
     }
   }, [newLabel, setFocusedLabel, setNewLabel, setLabels]);
@@ -517,6 +186,9 @@ export default function ImagePreview({
     },
     [setLabels]
   );
+  const { cursor, setLabelSuggestedCursor } = useImagePreviewCursors({
+    mode,
+  });
 
   return (
     <>
@@ -535,7 +207,17 @@ export default function ImagePreview({
       <Stage
         width={imageContainerSize.width}
         height={imageContainerSize.height}
-        className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 absolute"
+        className={cn(
+          "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 absolute",
+          {
+            "cursor-default": cursor === "default",
+            "cursor-ns-resize": cursor === "ns-resize",
+            "cursor-ew-resize": cursor === "ew-resize",
+            "cursor-nwse-resize": cursor === "nwse-resize",
+            "cursor-nesw-resize": cursor === "nesw-resize",
+            "cursor-crosshair": cursor === "crosshair",
+          }
+        )}
         onMouseDown={onStageMouseDown}
         onMouseMove={(e) => {
           setNewLabel((prev) => {
@@ -570,6 +252,7 @@ export default function ImagePreview({
                 isSelected={focuusedLabel === label.id}
                 onRequestSelect={setFocusedLabel}
                 onResize={onResize}
+                onRequestCursorChange={setLabelSuggestedCursor}
                 containerDimensions={imageContainerSize}
                 defaultStartPos={label.start}
                 defaultEndPos={label.end}
