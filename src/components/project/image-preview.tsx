@@ -1,18 +1,10 @@
 import { clamp } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
-import { on } from "events";
 import { KonvaEventObject } from "konva/lib/Node";
 import { type Rect as RectType } from "konva/lib/shapes/Rect";
-import { type Transformer as TransformerType } from "konva/lib/shapes/Transformer";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Stage,
-  Layer,
-  Rect,
-  Group,
-  Transformer,
-  KonvaNodeComponent,
-} from "react-konva";
+import { Stage, Layer, Rect, Group } from "react-konva";
+import { on } from "stream";
 
 type Pos = { x: number; y: number };
 type Label = {
@@ -79,6 +71,8 @@ function ResizableRect({
   height,
   isSelected,
   resizeRotation,
+  onAnchorMouseEnter,
+  onAnchorMouseLeave,
   onAnchorDragStart,
   onAnchorDragMove,
   onAnchorDragEnd,
@@ -90,6 +84,14 @@ function ResizableRect({
   height: number;
   isSelected: boolean;
   resizeRotation?: [1 | -1, 1 | -1];
+  onAnchorMouseEnter?: (
+    e: KonvaEventObject<MouseEvent>,
+    anchor: (typeof labelBoxAnchors)[number]
+  ) => void;
+  onAnchorMouseLeave?: (
+    e: KonvaEventObject<MouseEvent>,
+    anchor: (typeof labelBoxAnchors)[number]
+  ) => void;
   onAnchorDragStart?: (
     e: KonvaEventObject<DragEvent>,
     anchor: (typeof labelBoxAnchors)[number]
@@ -152,16 +154,18 @@ function ResizableRect({
               strokeWidth={1}
               draggable
               onMouseEnter={(e) => {
-                const stage = e.target.getStage();
-                if (!stage) return;
-                const container = stage.container();
-                container.style.cursor = anchor.cursor;
+                onAnchorMouseEnter?.(e, anchor);
+                // const stage = e.target.getStage();
+                // if (!stage) return;
+                // const container = stage.container();
+                // container.style.cursor = anchor.cursor;
               }}
               onMouseLeave={(e) => {
-                const stage = e.target.getStage();
-                if (!stage) return;
-                const container = stage.container();
-                container.style.cursor = "default";
+                onAnchorMouseEnter?.(e, anchor);
+                // const stage = e.target.getStage();
+                // if (!stage) return;
+                // const container = stage.container();
+                // container.style.cursor = "default";
               }}
               onDragStart={(e) => {
                 onAnchorDragStart?.(e, anchor);
@@ -198,19 +202,11 @@ function LabelBox({
   defaultEndPos: Pos;
 }) {
   const ref = useRef<RectType | null>(null);
-  const transformerRef = useRef<TransformerType | null>(null);
   const [startPos, setStartPos] = useState<Pos>(defaultStartPos);
   const [endPos, setEndPos] = useState<Pos>(defaultEndPos);
   const _onRequestSelect = useCallback(() => {
     onRequestSelect?.(id);
   }, [onRequestSelect, id]);
-
-  useEffect(() => {
-    if (!ref.current || !transformerRef.current) return;
-    if (!isSelected) return;
-    transformerRef.current.setNodes([ref.current]);
-    transformerRef.current.getLayer()?.batchDraw();
-  }, [ref.current, transformerRef.current, isSelected]);
 
   const handleDrag = (
     e: KonvaEventObject<DragEvent>,
@@ -338,9 +334,40 @@ function LabelBox({
   );
 }
 
+function NewLabelBox({
+  pos1,
+  pos2,
+  containerDimensions,
+}: {
+  pos1: Pos;
+  pos2: Pos;
+  containerDimensions: { width: number; height: number };
+}) {
+  const x = Math.min(pos1.x, pos2.x) * containerDimensions.width;
+  const y = Math.min(pos1.y, pos2.y) * containerDimensions.height;
+  const width = Math.abs(pos2.x - pos1.x) * containerDimensions.width;
+  const height = Math.abs(pos2.y - pos1.y) * containerDimensions.height;
+
+  return (
+    <Group>
+      <ResizableRect x={x} y={y} width={width} height={height} isSelected>
+        <Rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill="#ff00004f"
+          stroke="#ff0000"
+          strokeWidth={4}
+        />
+      </ResizableRect>
+    </Group>
+  );
+}
+
 export default function ImagePreview({
   currentPath,
-  mode,
+  mode = "label",
 }: {
   currentPath: string;
   mode: "label" | "view";
@@ -353,7 +380,7 @@ export default function ImagePreview({
   const [focuusedLabel, setFocusedLabel] = useState<string | null>(null);
   const [labels, setLabels] = useState<Map<string, Label>>(() => {
     const temp = new Map();
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 100; i++) {
       temp.set(i.toString(), {
         id: i.toString(),
         class: "1",
@@ -375,8 +402,9 @@ export default function ImagePreview({
       width: bb.width,
       height: bb.height,
     };
-    const imgAspectRatio = target.naturalWidth / target.naturalHeight;
-    const containerAspectRatio = size.width / size.height;
+    const imgAspectRatio =
+      target.naturalHeight > 0 ? target.naturalWidth / target.naturalHeight : 0;
+    const containerAspectRatio = size.height > 0 ? size.width / size.height : 0;
     // W = container width
     // H = container height
     // w = image width
@@ -392,10 +420,13 @@ export default function ImagePreview({
     // Otherwise,
     // (wH - Wh) / 2w = y
     else {
-      const padY =
-        (target.naturalWidth * size.height -
-          size.width * target.naturalHeight) /
-        (2 * target.naturalWidth);
+      let padY = 0;
+      if (target.naturalWidth > 0) {
+        padY =
+          (target.naturalWidth * size.height -
+            size.width * target.naturalHeight) /
+          (2 * target.naturalWidth);
+      }
       size.height = size.height - padY * 2;
     }
     setImageContainerSize(size);
@@ -409,24 +440,67 @@ export default function ImagePreview({
       const target = entry.target;
       if (!(target instanceof HTMLImageElement)) return;
       updateContainerSize(target);
-      // console.log(
-      //   `Natural: ${target.naturalWidth} ${target.naturalHeight} (${target.naturalWidth / target.naturalHeight}) Normal: ${size.width} ${size.height} (${size.width / size.height})`
-      // );
-      // setImageContainerSize(size);
     });
     resizeObserver.observe(imageRef.current);
   }, [imageRef.current, updateContainerSize]);
-  const deselectCheck = useCallback(
-    (e: KonvaEventObject<MouseEvent> | KonvaEventObject<TouchEvent>) => {
-      {
-        const clickedOnEmpty = e.target === e.target.getStage();
-        if (clickedOnEmpty) {
-          setFocusedLabel(null);
-        }
+  const [newLabel, setNewLabel] = useState<{
+    pos1: Pos;
+    pos2: Pos;
+  } | null>(null);
+  const onStageMouseDown = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      const clickedOnEmpty = e.target === e.target.getStage();
+      if (clickedOnEmpty) {
+        setFocusedLabel(null);
+        const pos = {
+          x: e.evt.offsetX,
+          y: e.evt.offsetY,
+        };
+        const relPos = {
+          x:
+            imageContainerSize.width > 0 ? pos.x / imageContainerSize.width : 0,
+          y:
+            imageContainerSize.height > 0
+              ? pos.y / imageContainerSize.height
+              : 0,
+        };
+        setNewLabel({
+          pos1: {
+            ...relPos,
+          },
+          pos2: {
+            ...relPos,
+          },
+        });
       }
     },
-    [setFocusedLabel]
+    [setFocusedLabel, setNewLabel, imageContainerSize]
   );
+  const onStageMouseUp = useCallback(() => {
+    if (newLabel !== null) {
+      const id = Math.random().toString();
+      const start = {
+        x: Math.min(newLabel.pos1.x, newLabel.pos2.x),
+        y: Math.min(newLabel.pos1.y, newLabel.pos2.y),
+      };
+      const end = {
+        x: Math.max(newLabel.pos1.x, newLabel.pos2.x),
+        y: Math.max(newLabel.pos1.y, newLabel.pos2.y),
+      };
+      setLabels((prev) => {
+        const newLabels = new Map(prev);
+        newLabels.set(id, {
+          id,
+          class: "1",
+          start,
+          end,
+        });
+        return newLabels;
+      });
+      setFocusedLabel(null);
+      setNewLabel(null);
+    }
+  }, [newLabel, setFocusedLabel, setNewLabel, setLabels]);
   const onResize = useCallback(
     (id: string, start: Pos, end: Pos) => {
       setLabels((prev) => {
@@ -443,10 +517,6 @@ export default function ImagePreview({
     },
     [setLabels]
   );
-  const [newLabel, setNewLabel] = useState<{
-    start: Pos;
-    end: Pos;
-  } | null>(null);
 
   return (
     <>
@@ -466,8 +536,30 @@ export default function ImagePreview({
         width={imageContainerSize.width}
         height={imageContainerSize.height}
         className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 absolute"
-        onMouseDown={deselectCheck}
-        onTouchStart={deselectCheck}
+        onMouseDown={onStageMouseDown}
+        onMouseMove={(e) => {
+          setNewLabel((prev) => {
+            if (prev === null) return prev;
+            const pos = {
+              x: e.evt.offsetX,
+              y: e.evt.offsetY,
+            };
+            return {
+              ...prev,
+              pos2: {
+                x:
+                  imageContainerSize.width > 0
+                    ? pos.x / imageContainerSize.width
+                    : 0,
+                y:
+                  imageContainerSize.height > 0
+                    ? pos.y / imageContainerSize.height
+                    : 0,
+              },
+            };
+          });
+        }}
+        onMouseUp={onStageMouseUp}
       >
         <Layer>
           {Array.from(labels.values()).map((label) => {
@@ -484,6 +576,13 @@ export default function ImagePreview({
               />
             );
           })}
+          {newLabel && (
+            <NewLabelBox
+              containerDimensions={imageContainerSize}
+              pos1={newLabel.pos1}
+              pos2={newLabel.pos2}
+            />
+          )}
         </Layer>
       </Stage>
     </>

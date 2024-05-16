@@ -14,13 +14,6 @@ export const Route = createFileRoute("/project/$path")({
   component: Project,
 });
 
-const paths = [
-  "/Users/benedicttan/Desktop/projects/weyes/dataset/IMG_7447.JPG",
-  "/Users/benedicttan/Desktop/projects/weyes/dataset/IMG_7479.JPG",
-  "/Users/benedicttan/Desktop/projects/weyes/dataset/IMG_7451.JPG",
-  "/Users/benedicttan/Desktop/tttt.jpeg",
-];
-
 const classes = [
   {
     id: "1",
@@ -176,7 +169,10 @@ function Project() {
   if (currentProjectStore.loadStatus.state === "success") {
     if (currentProjectStore.selectedImage !== null) {
       imagePreview = (
-        <ImagePreview currentPath={currentProjectStore.selectedImage} />
+        <ImagePreview
+          currentPath={currentProjectStore.selectedImage}
+          mode="label"
+        />
       );
     } else {
       imagePreview = (
