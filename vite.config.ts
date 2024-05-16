@@ -4,11 +4,15 @@ import path from "path";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
+import eslint from "vite-plugin-eslint";
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [
     react(),
+    eslint({
+      exclude: ["/virtual:/**", "node_modules/**"],
+    }),
     TanStackRouterVite(),
     ViteImageOptimizer({
       /* pass your config */
