@@ -3,7 +3,7 @@ import { KonvaEventObject } from "konva/lib/Node";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Stage, Layer } from "react-konva";
 import { cn } from "@/lib/utils";
-import { Pos, labelBoxAnchors } from "./label-anchors";
+import { Pos, getResizeCursorByAnchor, labelBoxAnchors } from "./label-anchors";
 import { NewLabelBox } from "./new-label-box";
 import { LabelBox } from "./label-box";
 
@@ -14,17 +14,34 @@ type Label = {
   end: Pos;
 };
 
-function useImagePreviewCursors({ mode }: { mode: "label" | "view" }) {
-  const [labelSuggestedCursor, setLabelSuggestedCursor] = useState<
-    (typeof labelBoxAnchors)[number]["cursor"] | null
-  >(null);
+type Cursor =
+  | (typeof labelBoxAnchors)[number]["cursor"]
+  | "crosshair"
+  | "move"
+  | "default";
 
-  let cursor:
-    | (typeof labelBoxAnchors)[number]["cursor"]
-    | "crosshair"
-    | "default" = mode === "label" ? "crosshair" : ("default" as const);
+function useImagePreviewCursors({
+  mode,
+  newLabel,
+}: {
+  mode: "label" | "view";
+  newLabel: { pos1: Pos; pos2: Pos } | null;
+}) {
+  const [labelSuggestedCursor, setLabelSuggestedCursor] =
+    useState<Cursor | null>(null);
+  const newLabelCursor = newLabel
+    ? getResizeCursorByAnchor(
+        newLabel.pos2.x - newLabel.pos1.x,
+        newLabel.pos2.y - newLabel.pos1.y
+      )
+    : null;
+
+  let cursor: Cursor = mode === "label" ? "crosshair" : ("default" as const);
   if (labelSuggestedCursor !== null) {
     cursor = labelSuggestedCursor;
+  }
+  if (newLabelCursor !== null) {
+    cursor = newLabelCursor;
   }
 
   return {
@@ -188,6 +205,7 @@ export default function ImagePreview({
   );
   const { cursor, setLabelSuggestedCursor } = useImagePreviewCursors({
     mode,
+    newLabel,
   });
 
   return (
@@ -216,6 +234,7 @@ export default function ImagePreview({
             "cursor-nwse-resize": cursor === "nwse-resize",
             "cursor-nesw-resize": cursor === "nesw-resize",
             "cursor-crosshair": cursor === "crosshair",
+            "cursor-move": cursor === "move",
           }
         )}
         onMouseDown={onStageMouseDown}

@@ -21,7 +21,7 @@ export function LabelBox({
   onRequestSelect?: (id: string) => void;
   onResize?: (id: string, start: Pos, end: Pos) => void;
   onRequestCursorChange?: (
-    cursor: (typeof labelBoxAnchors)[number]["cursor"] | null
+    cursor: (typeof labelBoxAnchors)[number]["cursor"] | "move" | null
   ) => void;
   containerDimensions: { width: number; height: number };
   // Resync position with defaults by updating the key of the component.
@@ -161,7 +161,19 @@ export function LabelBox({
           strokeWidth={4}
           draggable
           ref={ref}
-          onDragEnd={(e) => handleDrag(e, true)}
+          onMouseEnter={() => {
+            onRequestCursorChange?.("move");
+          }}
+          onMouseLeave={() => {
+            onRequestCursorChange?.(null);
+          }}
+          onDragStart={() => {
+            onRequestCursorChange?.("move");
+          }}
+          onDragEnd={(e) => {
+            handleDrag(e, true);
+            onRequestCursorChange?.(null);
+          }}
           onDragMove={(e) => handleDrag(e, false)}
         />
       </ResizableRect>

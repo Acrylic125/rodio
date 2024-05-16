@@ -48,3 +48,26 @@ export const labelBoxAnchors = [
     at: [-1, 0],
   },
 ] as const;
+
+function hashAnchor(x: number, y: number) {
+  return x + y * (labelBoxAnchors.length * 10);
+}
+
+const compiledCursors = new Map<
+  number,
+  (typeof labelBoxAnchors)[number]["cursor"]
+>(
+  labelBoxAnchors.map((anchor) => [
+    hashAnchor(anchor.at[0], anchor.at[1]),
+    anchor.cursor,
+  ])
+);
+
+const sign = (n: number) => (n > 0 ? 1 : n < 0 ? -1 : 0);
+
+export function getResizeCursorByAnchor(x: number, y: number) {
+  const xSign = sign(x);
+  const ySign = sign(y);
+
+  return compiledCursors.get(hashAnchor(xSign, ySign)) ?? null;
+}
