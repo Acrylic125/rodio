@@ -207,6 +207,17 @@ export default function ImagePreview({
     mode,
     newLabel,
   });
+  useEffect(() => {
+    const handleUnfocus = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setFocusedLabel(null);
+      }
+    };
+    window.addEventListener("keydown", handleUnfocus);
+    return () => {
+      window.removeEventListener("keydown", handleUnfocus);
+    };
+  }, [setFocusedLabel]);
 
   return (
     <>
