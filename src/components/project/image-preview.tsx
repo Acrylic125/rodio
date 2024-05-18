@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Pos, getResizeCursorByAnchor, labelBoxAnchors } from "./label-anchors";
 import { NewLabelBox } from "./new-label-box";
 import { LabelBox } from "./label-box";
+import { useKeyPress } from "@/lib/use-keypress";
 
 type Label = {
   id: string;
@@ -51,36 +52,11 @@ function useImagePreviewCursors({
   };
 }
 
-export default function ImagePreview({
-  currentPath,
-  mode = "label",
-}: {
-  currentPath: string;
-  mode: "label" | "view";
-}) {
+function useImageContainer() {
   const imageRef = useRef<HTMLImageElement>(null);
   const [imageContainerSize, setImageContainerSize] = useState({
     width: 0,
     height: 0,
-  });
-  const [focuusedLabel, setFocusedLabel] = useState<string | null>(null);
-  const [labels, setLabels] = useState<Map<string, Label>>(() => {
-    const temp = new Map();
-    for (let i = 0; i < 100; i++) {
-      temp.set(i.toString(), {
-        id: i.toString(),
-        class: "1",
-        start: {
-          x: 0.1,
-          y: 0.1,
-        },
-        end: {
-          x: 0.3,
-          y: 0.3,
-        },
-      });
-    }
-    return temp;
   });
   const updateContainerSize = useCallback((target: HTMLImageElement) => {
     const bb = target.getBoundingClientRect();
@@ -117,7 +93,6 @@ export default function ImagePreview({
     }
     setImageContainerSize(size);
   }, []);
-
   useEffect(() => {
     if (!imageRef.current) return;
     const resizeObserver = new ResizeObserver((entries) => {
@@ -129,6 +104,41 @@ export default function ImagePreview({
     });
     resizeObserver.observe(imageRef.current);
   }, [imageRef.current, updateContainerSize]);
+  return {
+    imageRef,
+    imageContainerSize,
+    updateContainerSize,
+  };
+}
+
+export default function ImagePreview({
+  currentPath,
+  mode = "label",
+}: {
+  currentPath: string;
+  mode: "label" | "view";
+}) {
+  const [focuusedLabel, setFocusedLabel] = useState<string | null>(null);
+  const { imageRef, imageContainerSize, updateContainerSize } =
+    useImageContainer();
+  const [labels, setLabels] = useState<Map<string, Label>>(() => {
+    const temp = new Map();
+    for (let i = 0; i < 100; i++) {
+      temp.set(i.toString(), {
+        id: i.toString(),
+        class: "1",
+        start: {
+          x: 0.1,
+          y: 0.1,
+        },
+        end: {
+          x: 0.3,
+          y: 0.3,
+        },
+      });
+    }
+    return temp;
+  });
   const [newLabel, setNewLabel] = useState<{
     pos1: Pos;
     pos2: Pos;
@@ -207,17 +217,17 @@ export default function ImagePreview({
     mode,
     newLabel,
   });
-  useEffect(() => {
-    const handleUnfocus = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setFocusedLabel(null);
-      }
-    };
-    window.addEventListener("keydown", handleUnfocus);
-    return () => {
-      window.removeEventListener("keydown", handleUnfocus);
-    };
-  }, [setFocusedLabel]);
+  useKeyPress(() => setFocusedLabel(null), ["Escape"]);
+  useKeyPress(() => {
+    const _focuusedLabel = focuusedLabel;
+    if (_focuusedLabel === null) return;
+    setFocusedLabel(null);
+    setLabels((prev) => {
+      const newLabels = new Map(prev);
+      newLabels.delete(_focuusedLabel);
+      return newLabels;
+    });
+  }, ["Backspace"]);
 
   return (
     <>

@@ -1,7 +1,6 @@
-import { Group } from "lucide-react";
 import { Pos } from "./label-anchors";
 import { ResizableRect } from "./resizable-rect";
-import { Rect } from "react-konva";
+import { Rect, Group } from "react-konva";
 
 export function NewLabelBox({
   pos1,
