@@ -1,14 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn, resolveError } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FilterIcon, Loader2 } from "lucide-react";
+import { FilterIcon, Loader2, PlusIcon } from "lucide-react";
 import ImagePreview from "@/components/project/image-preview";
 import { StoreApi, UseBoundStore, create } from "zustand";
 import { RodioProject } from "@/lib/rodio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
+import { Dialog } from "@radix-ui/react-dialog";
+import {
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@radix-ui/react-dropdown-menu";
+import { ColorPicker, colors } from "@/components/ui/color-picker";
 
 export const Route = createFileRoute("/project/$path")({
   component: Project,
@@ -94,6 +104,8 @@ function ImageList() {
       return project.images.getImages(project.projectPath);
     },
     enabled: currentProjectStore.project !== null,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
 
   if (imagesQuery.isError) {
@@ -148,6 +160,87 @@ function ImageList() {
   );
 }
 
+export function CreateClassModal({
+  isOpen,
+  setIsOpen,
+}: {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+}) {
+  const [color, setColor] = useState(
+    colors[Math.floor(Math.random() * colors.length)]
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="max-w-md md:max-w-lg lg:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Create Class</DialogTitle>
+          <DialogDescription>Specify the class to create.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <label className="flex flex-col gap-2">
+            <span>Name</span>
+            <Input name="Name" placeholder="Class Name (e.g. bus_number)" />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span>Color</span>
+            <ColorPicker
+              background={color}
+              setBackground={setColor}
+              className="w-full"
+            />
+          </label>
+        </div>
+        <DialogFooter>
+          <Button type="submit">Create Class</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ClassList() {
+  const [createClassModalOpen, setCreateClassModalOpen] = useState(false);
+
+  return (
+    <>
+      <CreateClassModal
+        isOpen={createClassModalOpen}
+        setIsOpen={setCreateClassModalOpen}
+      />
+
+      <div className="flex flex-row items-baseline justify-between gap-2 p-2 border-b border-gray-300 dark:border-gray-700 select-none">
+        <h2 className="text-gray-500 font-medium">CLASSES</h2>
+        <Button
+          className="px-0 py-0 w-8 h-8 aspect-square"
+          variant="secondary"
+          onClick={(e) => {
+            e.preventDefault();
+            setCreateClassModalOpen(true);
+          }}
+        >
+          <PlusIcon className="w-6 h-6" />
+        </Button>
+      </div>
+
+      <ul>
+        {classes.map((cls) => (
+          <li key={cls.id} className="p-2">
+            <div className="flex flex-row items-center gap-2">
+              <div
+                className="w-4 h-4 rounded-full"
+                style={{ backgroundColor: cls.color }}
+              />
+              <p>{cls.name}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 function Project() {
   const { path: _path } = Route.useParams();
   const path = useMemo(() => decodeURIComponent(_path), [_path]);
@@ -160,7 +253,10 @@ function Project() {
     };
   });
   useEffect(() => {
-    if (currentProjectStore.project === null) {
+    if (
+      currentProjectStore.project === null ||
+      currentProjectStore.project.projectPath !== path
+    ) {
       currentProjectStore.load(path);
     }
   }, [currentProjectStore.project, currentProjectStore.load, path]);
@@ -258,22 +354,7 @@ function Project() {
               </li>
             ))}
           </ul>
-          <h2 className="text-gray-500 font-medium p-2 border-b border-gray-300 dark:border-gray-700 select-none">
-            CLASSES
-          </h2>
-          <ul>
-            {classes.map((cls) => (
-              <li key={cls.id} className="p-2">
-                <div className="flex flex-row items-center gap-2">
-                  <div
-                    className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: cls.color }}
-                  />
-                  <p>{cls.name}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <ClassList />
         </section>
       </div>
     </main>
