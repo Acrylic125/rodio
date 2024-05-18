@@ -121,24 +121,7 @@ export default function ImagePreview({
   const [focuusedLabel, setFocusedLabel] = useState<string | null>(null);
   const { imageRef, imageContainerSize, updateContainerSize } =
     useImageContainer();
-  const [labels, setLabels] = useState<Map<string, Label>>(() => {
-    const temp = new Map();
-    for (let i = 0; i < 100; i++) {
-      temp.set(i.toString(), {
-        id: i.toString(),
-        class: "1",
-        start: {
-          x: 0.1,
-          y: 0.1,
-        },
-        end: {
-          x: 0.3,
-          y: 0.3,
-        },
-      });
-    }
-    return temp;
-  });
+  const [labels, setLabels] = useState<Map<string, Label>>(() => new Map());
   const [newLabel, setNewLabel] = useState<{
     pos1: Pos;
     pos2: Pos;
