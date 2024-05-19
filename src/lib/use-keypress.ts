@@ -8,7 +8,7 @@ export function useKeyPress(callback: () => void, keyCodes: KeyCode[]): void {
   useEffect(() => {
     const downHandler = (e: KeyboardEvent) => {
       if ((keyCodes as string[]).includes(e.code)) {
-        e.preventDefault();
+        // e.preventDefault();
         setPressedKeys((prevKeys) => {
           const newKeys = new Set(prevKeys);
           newKeys.add(e.code);
@@ -21,7 +21,7 @@ export function useKeyPress(callback: () => void, keyCodes: KeyCode[]): void {
     };
     const upHandler = (e: KeyboardEvent) => {
       if ((keyCodes as string[]).includes(e.code)) {
-        e.preventDefault();
+        // e.preventDefault();
         setPressedKeys((prevKeys) => {
           const newKeys = new Set(prevKeys);
           newKeys.delete(e.code);

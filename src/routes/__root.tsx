@@ -7,6 +7,7 @@ import {
 import { useEffect } from "react";
 import { object, parse, string } from "valibot";
 import { listen } from "@tauri-apps/api/event";
+import { usePreventBackspace } from "@/lib/use-prevent-backspace";
 // import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 
 export const Route = createRootRoute({
@@ -30,6 +31,7 @@ function unwrapEvent<K extends keyof typeof events, T>(
 
 function Root() {
   const navigate = useNavigate({});
+  usePreventBackspace();
   useEffect(() => {
     const cancel = unwrapEvent("goto", (name, schema) => {
       return listen(name, (event) => {
