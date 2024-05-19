@@ -11,6 +11,11 @@
   },
   "tauri": {
     "allowlist": {
+      "clipboard": {
+        "all": true,
+        "writeText": true,
+        "readText": true
+      },
       "protocol": {
         "asset": true,
         "assetScope": ["*/**"]

@@ -24,13 +24,30 @@ struct Payload {
 }
 
 fn main() {
-    let home = CustomMenuItem::new("home".to_string(), "Home");
-    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-    let submenu = Submenu::new("Rodio", Menu::new().add_item(home).add_item(quit));
+    let rodio_menu = Submenu::new(
+        "Rodio",
+        Menu::new()
+            .add_item(CustomMenuItem::new("home".to_string(), "Home"))
+            .add_item(CustomMenuItem::new("quit".to_string(), "Quit")),
+    );
+
+    let edit_menu = Submenu::new(
+        "Edit",
+        Menu::new()
+            .add_native_item(MenuItem::Undo)
+            .add_native_item(MenuItem::Redo)
+            .add_native_item(MenuItem::Separator)
+            .add_native_item(MenuItem::Cut)
+            .add_native_item(MenuItem::Copy)
+            .add_native_item(MenuItem::Paste)
+            .add_native_item(MenuItem::SelectAll),
+    );
+
     let menu = Menu::new()
         .add_native_item(MenuItem::Copy)
         .add_item(CustomMenuItem::new("hide", "Hide"))
-        .add_submenu(submenu);
+        .add_submenu(rodio_menu)
+        .add_submenu(edit_menu);
 
     tauri::Builder::default()
         .menu(menu)
