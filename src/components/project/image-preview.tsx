@@ -179,7 +179,7 @@ export default function ImagePreview({
         x: Math.max(newLabel.pos1.x, newLabel.pos2.x),
         y: Math.max(newLabel.pos1.y, newLabel.pos2.y),
       };
-      currentProjectFileStore.setLabels((prev) => {
+      currentProjectFileStore.setTempLabels((prev) => {
         if (currentProjectStore.selectedClass === null) return prev;
         const newLabels = new Map(prev);
         newLabels.set(id, {
@@ -198,7 +198,7 @@ export default function ImagePreview({
     newLabel,
     setFocusedLabel,
     setNewLabel,
-    currentProjectFileStore.setLabels,
+    currentProjectFileStore.setTempLabels,
   ]);
   const onResize = useCallback(
     (id: LabelId, start: Pos, end: Pos) => {
@@ -227,6 +227,13 @@ export default function ImagePreview({
     if (_focuusedLabel === null) return;
     setFocusedLabel(null);
     currentProjectFileStore.setLabels((prev) => {
+      if (prev.get(_focuusedLabel) === undefined) return prev;
+      const newLabels = new Map(prev);
+      newLabels.delete(_focuusedLabel);
+      return newLabels;
+    });
+    currentProjectFileStore.setTempLabels((prev) => {
+      if (prev.get(_focuusedLabel) === undefined) return prev;
       const newLabels = new Map(prev);
       newLabels.delete(_focuusedLabel);
       return newLabels;
