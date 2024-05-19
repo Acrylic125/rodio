@@ -8,14 +8,7 @@ import { NewLabelBox } from "./new-label-box";
 import { LabelBox } from "./label-box";
 import { useKeyPress } from "@/lib/use-keypress";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
-import { LabelClassId } from "@/lib/rodio-project";
-
-type Label = {
-  id: string;
-  class: LabelClassId;
-  start: Pos;
-  end: Pos;
-};
+import { Label, LabelId } from "@/lib/rodio-project";
 
 type Cursor =
   | (typeof labelBoxAnchors)[number]["cursor"]
@@ -120,10 +113,10 @@ export default function ImagePreview({
   currentPath: string;
   mode: "label" | "view";
 }) {
-  const [focuusedLabel, setFocusedLabel] = useState<string | null>(null);
+  const [focuusedLabel, setFocusedLabel] = useState<LabelId | null>(null);
   const { imageRef, imageContainerSize, updateContainerSize } =
     useImageContainer();
-  const [labels, setLabels] = useState<Map<string, Label>>(() => new Map());
+  const [labels, setLabels] = useState<Map<LabelId, Label>>(() => new Map());
   const [newLabel, setNewLabel] = useState<{
     pos1: Pos;
     pos2: Pos;
@@ -167,7 +160,7 @@ export default function ImagePreview({
   );
   const onStageMouseUp = useCallback(() => {
     if (newLabel !== null) {
-      const id = Math.random().toString();
+      const id = Math.random();
       const start = {
         x: Math.min(newLabel.pos1.x, newLabel.pos2.x),
         y: Math.min(newLabel.pos1.y, newLabel.pos2.y),
@@ -198,7 +191,7 @@ export default function ImagePreview({
     setLabels,
   ]);
   const onResize = useCallback(
-    (id: string, start: Pos, end: Pos) => {
+    (id: LabelId, start: Pos, end: Pos) => {
       setLabels((prev) => {
         const newLabels = new Map(prev);
         const label = newLabels.get(id);

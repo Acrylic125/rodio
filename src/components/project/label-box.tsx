@@ -5,6 +5,7 @@ import { KonvaEventObject } from "konva/lib/Node";
 import { useCallback, useRef, useState } from "react";
 import { ResizableRect } from "./resizable-rect";
 import { Rect, Group } from "react-konva";
+import { LabelId } from "@/lib/rodio-project";
 
 export function LabelBox({
   isSelected,
@@ -18,9 +19,9 @@ export function LabelBox({
   defaultEndPos,
 }: {
   isSelected: boolean;
-  id: string;
-  onRequestSelect?: (id: string) => void;
-  onResize?: (id: string, start: Pos, end: Pos) => void;
+  id: LabelId;
+  onRequestSelect?: (id: LabelId) => void;
+  onResize?: (id: LabelId, start: Pos, end: Pos) => void;
   onRequestCursorChange?: (
     cursor: (typeof labelBoxAnchors)[number]["cursor"] | "move" | null
   ) => void;

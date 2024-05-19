@@ -9,6 +9,7 @@ import {
 import path from "path";
 import { Output, object, parse, string } from "valibot";
 import { Migration, migrateSQLite } from "./db";
+import { Pos } from "@/components/project/label-anchors";
 
 export interface RodioProjectFile {
   readonly type: "file" | "dir";
@@ -74,6 +75,14 @@ export class RodioProjectImages implements RodioProjectFile {
     }
   }
 }
+
+export type LabelId = number;
+export type Label = {
+  id: LabelId;
+  class: LabelClassId;
+  start: Pos;
+  end: Pos;
+};
 
 export type LabelClassId = number;
 export type LabelClass = {
