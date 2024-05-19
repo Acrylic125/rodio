@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, FilterIcon, Loader2, PlusIcon } from "lucide-react";
 import ImagePreview from "@/components/project/image-preview";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Dialog } from "@radix-ui/react-dialog";
 import {
   DialogContent,
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { ColorPicker, colors } from "@/components/ui/color-picker";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/project/$path")({
   component: Project,
@@ -122,7 +122,7 @@ export function CreateOrEditClassModal({
 }: {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  onRequestSave?: (name: string, color: string) => void;
+  onRequestSave?: (cls: { name: string; color: string }) => void;
   error?: string | null;
   isPending?: boolean;
   mode: "create" | "edit";
@@ -138,8 +138,7 @@ export function CreateOrEditClassModal({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            onRequestSave?.(name, color);
-            setIsOpen(false);
+            onRequestSave?.({ name, color });
           }}
         >
           {mode === "create" ? (
@@ -190,7 +189,7 @@ export function CreateOrEditClassModal({
               disabled={isPending}
               className="flex flex-row gap-2"
             >
-              <Loader2 className="animate-spin" />
+              {isPending && <Loader2 className="animate-spin" />}
               {mode === "create" ? "Create" : "Save Changes"}
             </Button>
           </DialogFooter>
@@ -213,8 +212,9 @@ function ClassList() {
       };
     }
   );
-  const createClass = useCallback(
-    (name: string, color: string) => {
+  const createClassMut = useMutation({
+    mutationFn: async ({ name, color }: { name: string; color: string }) => {
+      // await currentProjectStore.project.
       currentProjectStore.setClasses([
         ...currentProjectStore.classes,
         {
@@ -224,19 +224,19 @@ function ClassList() {
         },
       ]);
     },
-    [
-      currentProjectStore.classes,
-      currentProjectStore.setClasses,
-      currentProjectStore.project,
-    ]
-  );
+    onSuccess: () => {
+      setCreateClassModalOpen(false);
+    },
+  });
 
   return (
     <>
       <CreateOrEditClassModal
         isOpen={createClassModalOpen}
         setIsOpen={setCreateClassModalOpen}
-        onRequestSave={createClass}
+        onRequestSave={createClassMut.mutate}
+        isPending={createClassMut.isPending}
+        error={createClassMut.error?.message}
         mode="create"
       />
 

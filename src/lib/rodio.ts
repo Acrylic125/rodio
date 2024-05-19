@@ -162,10 +162,48 @@ export class RodioProjectImages implements RodioProjectFile {
   }
 }
 
+export type LabelClassId = string;
+export type LabelClass = {
+  id: LabelClassId;
+  name: string;
+  color: string;
+};
+
 export class RodioProjectDB implements RodioProjectFile {
   public readonly type = "file";
   public readonly relPath: string = "project.db";
   private _db: Database | null = null;
+
+  static migrations: Migration[] = [
+    {
+      description: "Create classes table",
+      up: `
+      CREATE TABLE IF NOT EXISTS classes (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      `,
+      down: `
+        DROP TABLE classes;
+      `,
+    },
+  ];
+
+  public async addClass(name: string, color: string) {
+    const db = await this.db();
+    return db.execute(`INSERT INTO classes (name, color) VALUES ($1, $2);`, [
+      name,
+      color,
+    ]);
+  }
+
+  public async getClasses() {
+    const db = await this.db();
+    const classes = await db.select<LabelClass[]>(`SELECT * FROM classes`);
+    return classes;
+  }
 
   public async db() {
     if (this._db === null) {
@@ -181,6 +219,7 @@ export class RodioProjectDB implements RodioProjectFile {
       return;
     }
     const db = await Database.load(`sqlite:${fp}`);
+    await migrateSQLite(db, RodioProjectDB.migrations, "up");
     this._db = db;
   }
 }
@@ -230,13 +269,6 @@ export interface RodioAppFile {
   load(appPath: string): Promise<void>;
 }
 
-export type LabelClassId = string;
-export type LabelClass = {
-  id: LabelClassId;
-  name: string;
-  color: string;
-};
-
 export class RodioAppDB implements RodioAppFile {
   static migrations: Migration[] = [
     {
@@ -253,39 +285,11 @@ export class RodioAppDB implements RodioAppFile {
         DROP TABLE projects;
       `,
     },
-    {
-      description: "Create classes table",
-      up: `
-      CREATE TABLE IF NOT EXISTS classes (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        color TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      `,
-      down: `
-        DROP TABLE classes;
-      `,
-    },
   ];
 
   public readonly type = "file";
   public readonly relPath: string = "app.db";
   private _db: Database | null = null;
-
-  public async addClass(name: string, color: string) {
-    const db = await this.db();
-    return db.execute(`INSERT INTO classes (name, color) VALUES ($1, $2);`, [
-      name,
-      color,
-    ]);
-  }
-
-  public async getClasses() {
-    const db = await this.db();
-    const classes = await db.select<LabelClass[]>(`SELECT * FROM classes`);
-    return classes;
-  }
 
   public async addProject(projectPath: string) {
     const db = await this.db();
