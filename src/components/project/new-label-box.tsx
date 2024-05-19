@@ -5,10 +5,12 @@ import { Rect, Group } from "react-konva";
 export function NewLabelBox({
   pos1,
   pos2,
+  color,
   containerDimensions,
 }: {
   pos1: Pos;
   pos2: Pos;
+  color: string;
   containerDimensions: { width: number; height: number };
 }) {
   const x = Math.min(pos1.x, pos2.x) * containerDimensions.width;
@@ -24,8 +26,10 @@ export function NewLabelBox({
           y={y}
           width={width}
           height={height}
-          fill="#ff00004f"
-          stroke="#ff0000"
+          fill={`${color}4f`}
+          stroke={color}
+          // fill="#ff00004f"
+          // stroke="#ff0000"
           strokeWidth={4}
         />
       </ResizableRect>

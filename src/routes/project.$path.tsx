@@ -202,29 +202,24 @@ export function CreateOrEditClassModal({
 function ClassList({ isPending }: { isPending?: boolean }) {
   const [createClassModalOpen, setCreateClassModalOpen] = useState(false);
   const currentProjectStore = useCurrentProjectStore(
-    ({ classes, project, selectedClass, selectClass, setClasses }) => {
+    ({ classesMap, project, selectedClass, selectClass, setClassesMap }) => {
       return {
-        classes,
+        classesMap,
         project,
         selectedClass,
         selectClass,
-        setClasses,
+        setClassesMap,
       };
     }
   );
   const createClassMut = useMutation({
     mutationFn: async ({ name, color }: { name: string; color: string }) => {
-      // await currentProjectStore.project.
       if (currentProjectStore.project === null) return;
-      await currentProjectStore.project.db.addClass(name, color);
-      currentProjectStore.setClasses([
-        ...currentProjectStore.classes,
-        {
-          id: String(currentProjectStore.classes.length + 1),
-          name,
-          color,
-        },
-      ]);
+      const id = await currentProjectStore.project.db.addClass(name, color);
+
+      const newClassesMap = new Map(currentProjectStore.classesMap);
+      newClassesMap.set(id, { id, name, color });
+      currentProjectStore.setClassesMap(newClassesMap);
     },
     onSuccess: () => {
       setCreateClassModalOpen(false);
@@ -266,7 +261,7 @@ function ClassList({ isPending }: { isPending?: boolean }) {
                 <Skeleton className="w-full h-8" />
               </li>
             ))
-          : currentProjectStore.classes.map((cls) => (
+          : Array.from(currentProjectStore.classesMap.values()).map((cls) => (
               <li
                 key={cls.id}
                 className="px-1 cursor-pointer"

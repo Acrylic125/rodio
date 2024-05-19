@@ -13,6 +13,7 @@ export function LabelBox({
   onResize,
   onRequestCursorChange,
   containerDimensions,
+  color,
   defaultStartPos,
   defaultEndPos,
 }: {
@@ -24,6 +25,7 @@ export function LabelBox({
     cursor: (typeof labelBoxAnchors)[number]["cursor"] | "move" | null
   ) => void;
   containerDimensions: { width: number; height: number };
+  color: string;
   // Resync position with defaults by updating the key of the component.
   defaultStartPos: Pos;
   defaultEndPos: Pos;
@@ -156,8 +158,10 @@ export function LabelBox({
           y={y}
           width={width}
           height={height}
-          fill="#ff00004f"
-          stroke="#ff0000"
+          // fill="#ff00004f"
+          // stroke="#ff0000"
+          fill={`${color}4f`}
+          stroke={color}
           strokeWidth={4}
           draggable
           ref={ref}

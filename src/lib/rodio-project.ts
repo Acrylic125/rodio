@@ -75,7 +75,7 @@ export class RodioProjectImages implements RodioProjectFile {
   }
 }
 
-export type LabelClassId = string;
+export type LabelClassId = number;
 export type LabelClass = {
   id: LabelClassId;
   name: string;
@@ -106,10 +106,11 @@ export class RodioProjectDB implements RodioProjectFile {
 
   public async addClass(name: string, color: string) {
     const db = await this.db();
-    return db.execute(`INSERT INTO classes (name, color) VALUES ($1, $2);`, [
-      name,
-      color,
-    ]);
+    const res = await db.execute(
+      `INSERT INTO classes (name, color) VALUES ($1, $2);`,
+      [name, color]
+    );
+    return res.lastInsertId;
   }
 
   public async getClasses() {

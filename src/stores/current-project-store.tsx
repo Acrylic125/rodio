@@ -15,8 +15,8 @@ export const useCurrentProjectStore: UseBoundStore<
         };
     selectedImage: null | string;
     selectImage: (path: string) => void;
-    classes: LabelClass[];
-    setClasses: (classes: LabelClass[]) => void;
+    classesMap: Map<LabelClassId, LabelClass>;
+    setClassesMap: (classesMap: Map<LabelClassId, LabelClass>) => void;
     selectedClass: null | LabelClassId;
     selectClass: (className: LabelClassId) => void;
     load: (path: string) => Promise<void>;
@@ -30,9 +30,9 @@ export const useCurrentProjectStore: UseBoundStore<
   selectImage(path: string) {
     set({ selectedImage: path });
   },
-  classes: [],
-  setClasses(classes: LabelClass[]) {
-    set({ classes });
+  classesMap: new Map(),
+  setClassesMap(classesMap: Map<LabelClassId, LabelClass>) {
+    set({ classesMap });
   },
   selectedClass: null,
   selectClass(labelClass: LabelClassId) {
@@ -48,7 +48,11 @@ export const useCurrentProjectStore: UseBoundStore<
       const project = new RodioProject(path);
       await project.load();
       const classes = await project.db.getClasses();
-      set({ project, loadStatus: { state: "success" }, classes });
+      set({
+        project,
+        loadStatus: { state: "success" },
+        classesMap: new Map(classes.map((c) => [c.id, c])),
+      });
     } catch (error) {
       console.error(error);
       set({

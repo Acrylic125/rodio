@@ -7,10 +7,12 @@ import { Pos, getResizeCursorByAnchor, labelBoxAnchors } from "./label-anchors";
 import { NewLabelBox } from "./new-label-box";
 import { LabelBox } from "./label-box";
 import { useKeyPress } from "@/lib/use-keypress";
+import { useCurrentProjectStore } from "@/stores/current-project-store";
+import { LabelClassId } from "@/lib/rodio-project";
 
 type Label = {
   id: string;
-  class: string;
+  class: LabelClassId;
   start: Pos;
   end: Pos;
 };
@@ -126,6 +128,14 @@ export default function ImagePreview({
     pos1: Pos;
     pos2: Pos;
   } | null>(null);
+  const currentProjectStore = useCurrentProjectStore(
+    ({ classesMap, selectedClass }) => {
+      return {
+        classesMap,
+        selectedClass,
+      };
+    }
+  );
   const onStageMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
       const clickedOnEmpty = e.target === e.target.getStage();
@@ -167,10 +177,11 @@ export default function ImagePreview({
         y: Math.max(newLabel.pos1.y, newLabel.pos2.y),
       };
       setLabels((prev) => {
+        if (currentProjectStore.selectedClass === null) return prev;
         const newLabels = new Map(prev);
         newLabels.set(id, {
           id,
-          class: "1",
+          class: currentProjectStore.selectedClass,
           start,
           end,
         });
@@ -179,7 +190,13 @@ export default function ImagePreview({
       setFocusedLabel(id);
       setNewLabel(null);
     }
-  }, [newLabel, setFocusedLabel, setNewLabel, setLabels]);
+  }, [
+    currentProjectStore.selectedClass,
+    newLabel,
+    setFocusedLabel,
+    setNewLabel,
+    setLabels,
+  ]);
   const onResize = useCallback(
     (id: string, start: Pos, end: Pos) => {
       setLabels((prev) => {
@@ -187,7 +204,8 @@ export default function ImagePreview({
         const label = newLabels.get(id);
         if (!label) return newLabels;
         newLabels.set(id, {
-          ...label,
+          id: label.id,
+          class: label.class,
           start,
           end,
         });
@@ -272,6 +290,10 @@ export default function ImagePreview({
               <LabelBox
                 key={label.id}
                 id={label.id}
+                color={
+                  currentProjectStore.classesMap.get(label.class)?.color ??
+                  "#000000"
+                }
                 isSelected={focuusedLabel === label.id}
                 onRequestSelect={setFocusedLabel}
                 onResize={onResize}
@@ -285,6 +307,11 @@ export default function ImagePreview({
           {newLabel && (
             <NewLabelBox
               containerDimensions={imageContainerSize}
+              color={
+                currentProjectStore.classesMap.get(
+                  currentProjectStore.selectedClass ?? 0
+                )?.color ?? "#000000"
+              }
               pos1={newLabel.pos1}
               pos2={newLabel.pos2}
             />
