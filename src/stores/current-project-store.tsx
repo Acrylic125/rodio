@@ -47,7 +47,8 @@ export const useCurrentProjectStore: UseBoundStore<
     try {
       const project = new RodioProject(path);
       await project.load();
-      set({ project, loadStatus: { state: "success" } });
+      const classes = await project.db.getClasses();
+      set({ project, loadStatus: { state: "success" }, classes });
     } catch (error) {
       console.error(error);
       set({

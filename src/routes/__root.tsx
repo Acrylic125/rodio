@@ -1,9 +1,4 @@
-import {
-  createRootRoute,
-  Outlet,
-  Router,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createRootRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { object, parse, string } from "valibot";
 import { listen } from "@tauri-apps/api/event";

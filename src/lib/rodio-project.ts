@@ -99,7 +99,7 @@ export class RodioProjectDB implements RodioProjectFile {
       );
       `,
       down: `
-        DROP TABLE classes;
+        DROP TABLE IF EXISTS classes;
       `,
     },
   ];

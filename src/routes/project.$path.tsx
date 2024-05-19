@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn, resolveError } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, FilterIcon, Loader2, PlusIcon } from "lucide-react";
+import { FilterIcon, Loader2, PlusIcon } from "lucide-react";
 import ImagePreview from "@/components/project/image-preview";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -215,6 +215,8 @@ function ClassList() {
   const createClassMut = useMutation({
     mutationFn: async ({ name, color }: { name: string; color: string }) => {
       // await currentProjectStore.project.
+      if (currentProjectStore.project === null) return;
+      await currentProjectStore.project.db.addClass(name, color);
       currentProjectStore.setClasses([
         ...currentProjectStore.classes,
         {
@@ -236,7 +238,9 @@ function ClassList() {
         setIsOpen={setCreateClassModalOpen}
         onRequestSave={createClassMut.mutate}
         isPending={createClassMut.isPending}
-        error={createClassMut.error?.message}
+        error={
+          createClassMut.error ? resolveError(createClassMut.error) : undefined
+        }
         mode="create"
       />
 

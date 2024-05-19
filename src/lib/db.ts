@@ -61,7 +61,6 @@ export async function migrateSQLite(
 
       UPDATE migrations SET version = ${i - 1} WHERE id = ${currentRecord.id};
       `;
-      console.log(sql);
 
       await db.execute(sql);
     }
@@ -74,6 +73,9 @@ export async function migrateSQLite(
   }
 
   // Migrations needs to be done sequentially.
+  console.log(
+    `Migrate up to version ${targetVersion} from ${currentRecord.version}`
+  );
   for (let i = currentRecord.version; i < targetVersion; i++) {
     const migration = migrations[i];
 
