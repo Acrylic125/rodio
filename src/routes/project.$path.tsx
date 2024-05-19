@@ -199,7 +199,7 @@ export function CreateOrEditClassModal({
   );
 }
 
-function ClassList() {
+function ClassList({ isPending }: { isPending?: boolean }) {
   const [createClassModalOpen, setCreateClassModalOpen] = useState(false);
   const currentProjectStore = useCurrentProjectStore(
     ({ classes, project, selectedClass, selectClass, setClasses }) => {
@@ -253,35 +253,42 @@ function ClassList() {
             e.preventDefault();
             setCreateClassModalOpen(true);
           }}
+          disabled={isPending}
         >
           <PlusIcon className="w-6 h-6" />
         </Button>
       </div>
 
-      <ul className="flex flex-col gap-0">
-        {currentProjectStore.classes.map((cls) => (
-          <li
-            key={cls.id}
-            className="px-1 cursor-pointer"
-            onClick={() => currentProjectStore.selectClass(cls.id)}
-          >
-            <div
-              className={cn(
-                "flex flex-row items-center gap-2 p-1 transition ease-in-out duration-200",
-                {
-                  "bg-primary text-gray-50 dark:text-gray-950 rounded-sm":
-                    cls.id === currentProjectStore.selectedClass,
-                }
-              )}
-            >
-              <div
-                className="w-4 h-4 rounded-full"
-                style={{ backgroundColor: cls.color }}
-              />
-              <p>{cls.name}</p>
-            </div>
-          </li>
-        ))}
+      <ul className="flex flex-col gap-0 py-2">
+        {isPending
+          ? new Array(5).fill(null).map((_, i) => (
+              <li key={i} className="p-1">
+                <Skeleton className="w-full h-8" />
+              </li>
+            ))
+          : currentProjectStore.classes.map((cls) => (
+              <li
+                key={cls.id}
+                className="px-1 cursor-pointer"
+                onClick={() => currentProjectStore.selectClass(cls.id)}
+              >
+                <div
+                  className={cn(
+                    "flex flex-row items-center gap-2 p-1 transition ease-in-out duration-200",
+                    {
+                      "bg-primary text-gray-50 dark:text-gray-950 rounded-sm":
+                        cls.id === currentProjectStore.selectedClass,
+                    }
+                  )}
+                >
+                  <div
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: cls.color }}
+                  />
+                  <p>{cls.name}</p>
+                </div>
+              </li>
+            ))}
       </ul>
     </>
   );
@@ -400,7 +407,9 @@ function Project() {
               </li>
             ))}
           </ul>
-          <ClassList />
+          <ClassList
+            isPending={currentProjectStore.loadStatus.state !== "success"}
+          />
         </section>
       </div>
     </main>
