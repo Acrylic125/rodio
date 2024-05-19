@@ -1,12 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn, resolveError } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FilterIcon, Loader2, PlusIcon } from "lucide-react";
+import { AlertCircle, FilterIcon, Loader2, PlusIcon } from "lucide-react";
 import ImagePreview from "@/components/project/image-preview";
-import { StoreApi, UseBoundStore, create } from "zustand";
-import { RodioProject } from "@/lib/rodio";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog } from "@radix-ui/react-dialog";
@@ -17,8 +15,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@radix-ui/react-dropdown-menu";
 import { ColorPicker, colors } from "@/components/ui/color-picker";
+import { useCurrentProjectStore } from "@/stores/current-project-store";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/project/$path")({
   component: Project,
@@ -40,53 +39,6 @@ const labels = [
     end: [1, 1],
   },
 ] as const;
-
-export const useCurrentProjectStore: UseBoundStore<
-  StoreApi<{
-    project: RodioProject | null;
-    loadStatus:
-      | {
-          state: "idle" | "loading" | "success";
-        }
-      | {
-          state: "error";
-          message: string;
-        };
-    selectedImage: null | string;
-    selectImage: (path: string) => void;
-    load: (path: string) => Promise<void>;
-  }>
-> = create((set) => ({
-  project: null,
-  loadStatus: {
-    state: "idle",
-  },
-  selectedImage: null,
-  selectImage(path: string) {
-    set({ selectedImage: path });
-  },
-  async load(path: string) {
-    set({
-      loadStatus: {
-        state: "loading",
-      },
-    });
-    try {
-      const project = new RodioProject(path);
-      await project.load();
-      set({ project, loadStatus: { state: "success" } });
-    } catch (error) {
-      console.error(error);
-      set({
-        loadStatus: {
-          state: "error",
-          message: resolveError(error),
-        },
-      });
-      throw error; // Rethrow so it can be caught by the caller.
-    }
-  },
-}));
 
 function ImageList() {
   const currentProjectStore = useCurrentProjectStore((state) => {
@@ -160,13 +112,22 @@ function ImageList() {
   );
 }
 
-export function CreateClassModal({
+export function CreateOrEditClassModal({
   isOpen,
   setIsOpen,
+  onRequestSave,
+  error,
+  isPending,
+  mode,
 }: {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
+  onRequestSave?: (name: string, color: string) => void;
+  error?: string | null;
+  isPending?: boolean;
+  mode: "create" | "edit";
 }) {
+  const [name, setName] = useState("");
   const [color, setColor] = useState(
     colors[Math.floor(Math.random() * colors.length)]
   );
@@ -174,27 +135,66 @@ export function CreateClassModal({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="max-w-md md:max-w-lg lg:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Create Class</DialogTitle>
-          <DialogDescription>Specify the class to create.</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <label className="flex flex-col gap-2">
-            <span>Name</span>
-            <Input name="Name" placeholder="Class Name (e.g. bus_number)" />
-          </label>
-          <label className="flex flex-col gap-2">
-            <span>Color</span>
-            <ColorPicker
-              background={color}
-              setBackground={setColor}
-              className="w-full"
-            />
-          </label>
-        </div>
-        <DialogFooter>
-          <Button type="submit">Create Class</Button>
-        </DialogFooter>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onRequestSave?.(name, color);
+            setIsOpen(false);
+          }}
+        >
+          {mode === "create" ? (
+            <DialogHeader>
+              <DialogTitle>Create Class</DialogTitle>
+              <DialogDescription>
+                Specify the class to create.
+              </DialogDescription>
+            </DialogHeader>
+          ) : (
+            <DialogHeader>
+              <DialogTitle>Edit Class</DialogTitle>
+              <DialogDescription>
+                Specify the changes to make to this class.
+              </DialogDescription>
+            </DialogHeader>
+          )}
+          <div className="grid gap-4 py-4">
+            <label className="flex flex-col gap-2">
+              <span>Name</span>
+              <Input
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                }}
+                name="Name"
+                placeholder="Class Name (e.g. bus_number)"
+              />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span>Color</span>
+              <ColorPicker
+                background={color}
+                setBackground={setColor}
+                className="w-full"
+              />
+            </label>
+          </div>
+
+          {error && (
+            <Alert className="mb-4" variant="error">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <DialogFooter>
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="flex flex-row gap-2"
+            >
+              <Loader2 className="animate-spin" />
+              {mode === "create" ? "Create" : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -202,12 +202,42 @@ export function CreateClassModal({
 
 function ClassList() {
   const [createClassModalOpen, setCreateClassModalOpen] = useState(false);
+  const currentProjectStore = useCurrentProjectStore(
+    ({ classes, project, selectedClass, selectClass, setClasses }) => {
+      return {
+        classes,
+        project,
+        selectedClass,
+        selectClass,
+        setClasses,
+      };
+    }
+  );
+  const createClass = useCallback(
+    (name: string, color: string) => {
+      currentProjectStore.setClasses([
+        ...currentProjectStore.classes,
+        {
+          id: String(currentProjectStore.classes.length + 1),
+          name,
+          color,
+        },
+      ]);
+    },
+    [
+      currentProjectStore.classes,
+      currentProjectStore.setClasses,
+      currentProjectStore.project,
+    ]
+  );
 
   return (
     <>
-      <CreateClassModal
+      <CreateOrEditClassModal
         isOpen={createClassModalOpen}
         setIsOpen={setCreateClassModalOpen}
+        onRequestSave={createClass}
+        mode="create"
       />
 
       <div className="flex flex-row items-baseline justify-between gap-2 p-2 border-b border-gray-300 dark:border-gray-700 select-none">
@@ -224,10 +254,22 @@ function ClassList() {
         </Button>
       </div>
 
-      <ul>
-        {classes.map((cls) => (
-          <li key={cls.id} className="p-2">
-            <div className="flex flex-row items-center gap-2">
+      <ul className="flex flex-col gap-0">
+        {currentProjectStore.classes.map((cls) => (
+          <li
+            key={cls.id}
+            className="px-1 cursor-pointer"
+            onClick={() => currentProjectStore.selectClass(cls.id)}
+          >
+            <div
+              className={cn(
+                "flex flex-row items-center gap-2 p-1 transition ease-in-out duration-200",
+                {
+                  "bg-primary text-gray-50 dark:text-gray-950 rounded-sm":
+                    cls.id === currentProjectStore.selectedClass,
+                }
+              )}
+            >
               <div
                 className="w-4 h-4 rounded-full"
                 style={{ backgroundColor: cls.color }}
