@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-var types = [
+const types = [
   "text",
   "password",
   "file",
