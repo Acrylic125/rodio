@@ -2,7 +2,7 @@ import { Label, LabelId, RodioProject } from "@/lib/rodio-project";
 import { resolveError } from "@/lib/utils";
 import { StoreApi, UseBoundStore, create } from "zustand";
 
-export const useCurrentProjectFile: UseBoundStore<
+export const useCurrentProjectFileStore: UseBoundStore<
   StoreApi<{
     loadStatus:
       | {
@@ -13,9 +13,17 @@ export const useCurrentProjectFile: UseBoundStore<
           message: string;
         };
     labels: Map<LabelId, Label>;
-    setLabels: (labels: Map<LabelId, Label>) => void;
+    setLabels: (
+      labels:
+        | Map<LabelId, Label>
+        | ((prev: Map<LabelId, Label>) => Map<LabelId, Label>)
+    ) => void;
     tempLabels: Map<LabelId, Label>;
-    setTempLabels: (tempLabels: Map<LabelId, Label>) => void;
+    setTempLabels: (
+      tempLabels:
+        | Map<LabelId, Label>
+        | ((prev: Map<LabelId, Label>) => Map<LabelId, Label>)
+    ) => void;
     load: (project: RodioProject, path: string) => Promise<void>;
   }>
 > = create((set) => ({
@@ -23,12 +31,36 @@ export const useCurrentProjectFile: UseBoundStore<
     state: "idle",
   },
   labels: new Map(),
-  setLabels(labels: Map<LabelId, Label>) {
-    set({ labels });
+  setLabels(
+    labels:
+      | Map<LabelId, Label>
+      | ((prev: Map<LabelId, Label>) => Map<LabelId, Label>)
+  ) {
+    if (typeof labels === "function") {
+      set(({ labels: prev }) => {
+        return {
+          labels: labels(prev),
+        };
+      });
+    } else {
+      set({ labels });
+    }
   },
   tempLabels: new Map(),
-  setTempLabels(tempLabels: Map<LabelId, Label>) {
-    set({ tempLabels });
+  setTempLabels(
+    tempLabels:
+      | Map<LabelId, Label>
+      | ((prev: Map<LabelId, Label>) => Map<LabelId, Label>)
+  ) {
+    if (typeof tempLabels === "function") {
+      set(({ labels: prev }) => {
+        return {
+          tempLabels: tempLabels(prev),
+        };
+      });
+    } else {
+      set({ tempLabels });
+    }
   },
   async load(project: RodioProject, path: string) {
     set({

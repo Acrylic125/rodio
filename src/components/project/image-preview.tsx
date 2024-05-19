@@ -8,7 +8,8 @@ import { NewLabelBox } from "./new-label-box";
 import { LabelBox } from "./label-box";
 import { useKeyPress } from "@/lib/use-keypress";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
-import { Label, LabelId } from "@/lib/rodio-project";
+import { LabelId } from "@/lib/rodio-project";
+import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 
 type Cursor =
   | (typeof labelBoxAnchors)[number]["cursor"]
@@ -116,9 +117,15 @@ export default function ImagePreview({
   const [focuusedLabel, setFocusedLabel] = useState<LabelId | null>(null);
   const { imageRef, imageContainerSize, updateContainerSize } =
     useImageContainer();
-  const [labels, setLabels] = useState<Map<LabelId, Label>>(() => new Map());
-  const [tempLabels, setTempLabels] = useState<Map<LabelId, Label>>(
-    () => new Map()
+  const currentProjectFileStore = useCurrentProjectFileStore(
+    ({ labels, tempLabels, setLabels, setTempLabels }) => {
+      return {
+        labels,
+        tempLabels,
+        setLabels,
+        setTempLabels,
+      };
+    }
   );
   const [newLabel, setNewLabel] = useState<{
     pos1: Pos;
@@ -172,7 +179,7 @@ export default function ImagePreview({
         x: Math.max(newLabel.pos1.x, newLabel.pos2.x),
         y: Math.max(newLabel.pos1.y, newLabel.pos2.y),
       };
-      setLabels((prev) => {
+      currentProjectFileStore.setLabels((prev) => {
         if (currentProjectStore.selectedClass === null) return prev;
         const newLabels = new Map(prev);
         newLabels.set(id, {
@@ -191,11 +198,11 @@ export default function ImagePreview({
     newLabel,
     setFocusedLabel,
     setNewLabel,
-    setLabels,
+    currentProjectFileStore.setLabels,
   ]);
   const onResize = useCallback(
     (id: LabelId, start: Pos, end: Pos) => {
-      setLabels((prev) => {
+      currentProjectFileStore.setLabels((prev) => {
         const newLabels = new Map(prev);
         const label = newLabels.get(id);
         if (!label) return newLabels;
@@ -208,7 +215,7 @@ export default function ImagePreview({
         return newLabels;
       });
     },
-    [setLabels]
+    [currentProjectFileStore.setLabels]
   );
   const { cursor, setLabelSuggestedCursor } = useImagePreviewCursors({
     mode,
@@ -219,7 +226,7 @@ export default function ImagePreview({
     const _focuusedLabel = focuusedLabel;
     if (_focuusedLabel === null) return;
     setFocusedLabel(null);
-    setLabels((prev) => {
+    currentProjectFileStore.setLabels((prev) => {
       const newLabels = new Map(prev);
       newLabels.delete(_focuusedLabel);
       return newLabels;
@@ -281,7 +288,7 @@ export default function ImagePreview({
         onMouseUp={onStageMouseUp}
       >
         <Layer>
-          {Array.from(labels.values()).map((label) => {
+          {Array.from(currentProjectFileStore.labels.values()).map((label) => {
             return (
               <LabelBox
                 key={label.id}
@@ -300,25 +307,27 @@ export default function ImagePreview({
               />
             );
           })}
-          {Array.from(tempLabels.values()).map((label) => {
-            return (
-              <LabelBox
-                key={label.id}
-                id={label.id}
-                color={
-                  currentProjectStore.classesMap.get(label.class)?.color ??
-                  "#000000"
-                }
-                isSelected={focuusedLabel === label.id}
-                onRequestSelect={setFocusedLabel}
-                onResize={onResize}
-                onRequestCursorChange={setLabelSuggestedCursor}
-                containerDimensions={imageContainerSize}
-                defaultStartPos={label.start}
-                defaultEndPos={label.end}
-              />
-            );
-          })}
+          {Array.from(currentProjectFileStore.tempLabels.values()).map(
+            (label) => {
+              return (
+                <LabelBox
+                  key={label.id}
+                  id={label.id}
+                  color={
+                    currentProjectStore.classesMap.get(label.class)?.color ??
+                    "#000000"
+                  }
+                  isSelected={focuusedLabel === label.id}
+                  onRequestSelect={setFocusedLabel}
+                  onResize={onResize}
+                  onRequestCursorChange={setLabelSuggestedCursor}
+                  containerDimensions={imageContainerSize}
+                  defaultStartPos={label.start}
+                  defaultEndPos={label.end}
+                />
+              );
+            }
+          )}
           {newLabel && (
             <NewLabelBox
               containerDimensions={imageContainerSize}
