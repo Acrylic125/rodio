@@ -117,6 +117,9 @@ export default function ImagePreview({
   const { imageRef, imageContainerSize, updateContainerSize } =
     useImageContainer();
   const [labels, setLabels] = useState<Map<LabelId, Label>>(() => new Map());
+  const [tempLabels, setTempLabels] = useState<Map<LabelId, Label>>(
+    () => new Map()
+  );
   const [newLabel, setNewLabel] = useState<{
     pos1: Pos;
     pos2: Pos;
@@ -279,6 +282,25 @@ export default function ImagePreview({
       >
         <Layer>
           {Array.from(labels.values()).map((label) => {
+            return (
+              <LabelBox
+                key={label.id}
+                id={label.id}
+                color={
+                  currentProjectStore.classesMap.get(label.class)?.color ??
+                  "#000000"
+                }
+                isSelected={focuusedLabel === label.id}
+                onRequestSelect={setFocusedLabel}
+                onResize={onResize}
+                onRequestCursorChange={setLabelSuggestedCursor}
+                containerDimensions={imageContainerSize}
+                defaultStartPos={label.start}
+                defaultEndPos={label.end}
+              />
+            );
+          })}
+          {Array.from(tempLabels.values()).map((label) => {
             return (
               <LabelBox
                 key={label.id}

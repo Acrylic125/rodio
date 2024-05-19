@@ -111,7 +111,83 @@ export class RodioProjectDB implements RodioProjectFile {
         DROP TABLE IF EXISTS classes;
       `,
     },
+    {
+      description: "Create labels table",
+      up: `
+      CREATE TABLE IF NOT EXISTS labels (
+        id INTEGER PRIMARY KEY,
+        start_x FLOAT NOT NULL,
+        start_y FLOAT NOT NULL,
+        end_x FLOAT NOT NULL,
+        end_y FLOAT NOT NULL,
+        class_id INTEGER NOT NULL,
+        path TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (class_id) REFERENCES classes(id)
+      );
+      `,
+      down: `
+        DROP TABLE IF EXISTS labels;
+      `,
+    },
   ];
+
+  public async deleteLabel(labelId: LabelId) {
+    const db = await this.db();
+    return db.execute(`DELETE FROM labels WHERE id = $1;`, [labelId]);
+  }
+
+  public async updateLabel(label: Label) {
+    const db = await this.db();
+    return db.execute(
+      `UPDATE labels SET start_x = $1, start_y = $2, end_x = $3, end_y = $4, class_id = $5 WHERE id = $6;`,
+      [
+        label.start.x,
+        label.start.y,
+        label.end.x,
+        label.end.y,
+        label.class,
+        label.id,
+      ]
+    );
+  }
+
+  public async addLabel(path: string, label: Omit<Label, "id">) {
+    const db = await this.db();
+    return db.execute(
+      `INSERT INTO labels (start_x, start_y, end_x, end_y, class_id, path) VALUES ($1, $2, $3, $4, $5, $6);`,
+      [
+        label.start.x,
+        label.start.y,
+        label.end.x,
+        label.end.y,
+        label.class,
+        path,
+      ]
+    );
+  }
+
+  public async getLabels(path: string) {
+    const db = await this.db();
+    const labels = await db.select<
+      {
+        id: LabelId;
+        start_x: number;
+        start_y: number;
+        end_x: number;
+        end_y: number;
+        class_id: LabelClassId;
+      }[]
+    >(`SELECT * FROM labels WHERE path = $1`, [path]);
+    return labels.map((label) => {
+      return {
+        id: label.id,
+        start: { x: label.start_x, y: label.start_y },
+        end: { x: label.end_x, y: label.end_y },
+        class: label.class_id,
+      };
+    });
+  }
 
   public async addClass(name: string, color: string) {
     const db = await this.db();
