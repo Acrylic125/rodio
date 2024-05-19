@@ -53,7 +53,7 @@ export const useCurrentProjectFileStore: UseBoundStore<
       | ((prev: Map<LabelId, Label>) => Map<LabelId, Label>)
   ) {
     if (typeof tempLabels === "function") {
-      set(({ labels: prev }) => {
+      set(({ tempLabels: prev }) => {
         return {
           tempLabels: tempLabels(prev),
         };
