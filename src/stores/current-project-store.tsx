@@ -1,4 +1,4 @@
-import { LabelClass, LabelClassId, RodioProject } from "@/lib/rodio";
+import { LabelClass, LabelClassId, RodioProject } from "@/lib/rodio-project";
 import { resolveError } from "@/lib/utils";
 import { StoreApi, UseBoundStore, create } from "zustand";
 

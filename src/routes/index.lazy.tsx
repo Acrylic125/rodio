@@ -1,11 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RodioProjectConfig } from "@/lib/rodio";
+import { RodioProjectConfig } from "@/lib/rodio-project";
 import { resolveError } from "@/lib/utils";
-import {
-  useAppStore as useAppStore,
-  useAppStoreLoad,
-} from "@/stores/app-store";
+import { useAppStore, useAppStoreLoad } from "@/stores/app-store";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { open } from "@tauri-apps/api/dialog";

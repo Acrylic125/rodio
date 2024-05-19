@@ -1,4 +1,4 @@
-import { RodioApp } from "@/lib/rodio";
+import { RodioApp } from "@/lib/rodio-app";
 import { resolveError } from "@/lib/utils";
 import { appDataDir } from "@tauri-apps/api/path";
 import { useEffect } from "react";

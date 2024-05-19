@@ -16,7 +16,7 @@ import { useState } from "react";
 import path from "path";
 import { Loader2 } from "lucide-react";
 import { isValidFilepath } from "@/lib/file";
-import { RodioProject } from "@/lib/rodio";
+import { RodioProject } from "@/lib/rodio-project";
 import { resolveError } from "@/lib/utils";
 import { useAppStore, useAppStoreLoad } from "@/stores/app-store";
 
