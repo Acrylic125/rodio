@@ -32,7 +32,7 @@ export class ProcessQueue<K, T> {
       accId: number;
     }
   > = new Map();
-  public overrideUniqueness = true;
+  public overridePending = true;
 
   public async do(key: K, fn: () => Promise<T>) {
     let process = this.processMap.get(key);
@@ -47,7 +47,7 @@ export class ProcessQueue<K, T> {
     const taskId = process.accId++;
 
     await process.lock.acquire();
-    const shouldRun = process.nextId === taskId || !this.overrideUniqueness;
+    const shouldRun = process.nextId === taskId || !this.overridePending;
     try {
       if (shouldRun) {
         const result = await fn();
