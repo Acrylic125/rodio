@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { object, parse, string } from "valibot";
 import { listen } from "@tauri-apps/api/event";
 import { usePreventBackspace } from "@/lib/use-prevent-backspace";
+import { Toaster } from "@/components/ui/toaster";
 // import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 
 export const Route = createRootRoute({
@@ -45,6 +46,7 @@ function Root() {
   return (
     <>
       <Outlet />
+      <Toaster />
       {/* <TanStackRouterDevtools /> */}
     </>
   );
