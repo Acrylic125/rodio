@@ -76,7 +76,7 @@ export class RodioProjectImages implements RodioProjectFile {
   }
 }
 
-export type LabelId = number;
+export type LabelId = string;
 export type Label = {
   id: LabelId;
   class: LabelClassId;
@@ -115,7 +115,7 @@ export class RodioProjectDB implements RodioProjectFile {
       description: "Create labels table",
       up: `
       CREATE TABLE IF NOT EXISTS labels (
-        id INTEGER PRIMARY KEY,
+        id TEXT PRIMARY KEY,
         start_x FLOAT NOT NULL,
         start_y FLOAT NOT NULL,
         end_x FLOAT NOT NULL,
@@ -152,11 +152,12 @@ export class RodioProjectDB implements RodioProjectFile {
     );
   }
 
-  public async addLabel(path: string, label: Omit<Label, "id">) {
+  public async addLabel(path: string, label: Label) {
     const db = await this.db();
     return db.execute(
-      `INSERT INTO labels (start_x, start_y, end_x, end_y, class_id, path) VALUES ($1, $2, $3, $4, $5, $6);`,
+      `INSERT INTO labels (id, start_x, start_y, end_x, end_y, class_id, path) VALUES ($1, $2, $3, $4, $5, $6);`,
       [
+        label.id,
         label.start.x,
         label.start.y,
         label.end.x,

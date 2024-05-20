@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { KonvaEventObject } from "konva/lib/Node";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage, Layer } from "react-konva";
 import { cn } from "@/lib/utils";
 import { Pos, getResizeCursorByAnchor, labelBoxAnchors } from "./label-anchors";
@@ -8,8 +8,11 @@ import { NewLabelBox } from "./new-label-box";
 import { LabelBox } from "./label-box";
 import { useKeyPress } from "@/lib/use-keypress";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
-import { LabelId } from "@/lib/rodio-project";
+import { Label, LabelId } from "@/lib/rodio-project";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
+import { nanoid } from "nanoid";
+import { useMutation } from "@tanstack/react-query";
+import { ProcessQueue } from "@/lib/async";
 
 type Cursor =
   | (typeof labelBoxAnchors)[number]["cursor"]
@@ -107,6 +110,17 @@ function useImageContainer() {
   };
 }
 
+function useMutateLabel() {
+  const processQueue = useMemo(() => {
+    return new ProcessQueue<LabelId, void>();
+  }, []);
+  const createLabelMut = useMutation({
+    mutationFn: async (label: Label) => {
+      await processQueue.do(label.id, async () => {});
+    },
+  });
+}
+
 export default function ImagePreview({
   currentPath,
   mode = "label",
@@ -170,7 +184,7 @@ export default function ImagePreview({
   );
   const onStageMouseUp = useCallback(() => {
     if (newLabel !== null) {
-      const id = Math.random();
+      const id = nanoid(16);
       const start = {
         x: Math.min(newLabel.pos1.x, newLabel.pos2.x),
         y: Math.min(newLabel.pos1.y, newLabel.pos2.y),
@@ -179,7 +193,7 @@ export default function ImagePreview({
         x: Math.max(newLabel.pos1.x, newLabel.pos2.x),
         y: Math.max(newLabel.pos1.y, newLabel.pos2.y),
       };
-      currentProjectFileStore.setTempLabels((prev) => {
+      currentProjectFileStore.setLabels((prev) => {
         if (currentProjectStore.selectedClass === null) return prev;
         const newLabels = new Map(prev);
         newLabels.set(id, {
@@ -198,7 +212,7 @@ export default function ImagePreview({
     newLabel,
     setFocusedLabel,
     setNewLabel,
-    currentProjectFileStore.setTempLabels,
+    currentProjectFileStore.setLabels,
   ]);
   const onResize = useCallback(
     (id: LabelId, start: Pos, end: Pos) => {
