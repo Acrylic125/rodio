@@ -29,6 +29,7 @@ export class ProcessQueue<K, T> {
     {
       lock: Lock;
       nextId: number;
+      accId: number;
     }
   > = new Map();
   public overrideUniqueness = true;
@@ -39,19 +40,16 @@ export class ProcessQueue<K, T> {
       process = {
         lock: new Lock(),
         nextId: 0,
+        accId: 0,
       };
       this.processMap.set(key, process);
     }
-    const taskId = process.nextId++;
+    const taskId = process.accId++;
 
     await process.lock.acquire();
+    const shouldRun = process.nextId === taskId || !this.overrideUniqueness;
     try {
-      const currentProcess = this.processMap.get(key);
-      if (
-        !this.overrideUniqueness ||
-        currentProcess === undefined ||
-        currentProcess.nextId === taskId
-      ) {
+      if (shouldRun) {
         const result = await fn();
         return {
           type: "success",
@@ -62,6 +60,9 @@ export class ProcessQueue<K, T> {
         type: "skipped",
       };
     } finally {
+      if (shouldRun) {
+        process.nextId = process.accId;
+      }
       process.lock.release();
     }
   }
