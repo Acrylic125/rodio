@@ -20,6 +20,7 @@
     "@radix-ui/react-toast": "^1.1.5",
     "@tanstack/react-query": "^5.34.1",
     "@tanstack/react-router": "^1.31.4",
+    "@tanstack/react-virtual": "^3.5.0",
     "@tanstack/router-cli": "^1.30.0",
     "@tauri-apps/api": "^1",
     "class-variance-authority": "^0.7.0",
