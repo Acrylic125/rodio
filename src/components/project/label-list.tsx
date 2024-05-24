@@ -22,7 +22,7 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
       </h2>
       <ul>
         {Array.from(currentProjectFileStore.labels.values()).map((label) => (
-          <li key={label.class} className="p-2">
+          <li key={label.id} className="p-2">
             <div className="flex flex-row items-center gap-2">
               <div
                 className="w-4 h-4 rounded-full"
