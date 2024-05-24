@@ -9,6 +9,7 @@ import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { ImageList } from "@/components/project/image-list";
 import { LabelList } from "@/components/project/label-list";
 import { ClassList } from "@/components/project/class-list";
+import { ExportModal } from "@/components/project/export-modal";
 
 export const Route = createFileRoute("/project/$path")({
   component: Project,
@@ -72,12 +73,15 @@ function Project() {
 
   return (
     <main className="flex flex-col items-center bg-background w-screen h-svh">
-      <nav className="flex flex-row items-center w-full h-12 border-b border-gray-300 dark:border-gray-700 px-3">
+      <nav className="flex flex-row items-center justify-between w-full h-12 border-b border-gray-300 dark:border-gray-700 px-3">
         {currentProjectStore.project === null ? (
           <Skeleton className="w-32 h-4" />
         ) : (
           <h1>{currentProjectStore.project.config.values.name}</h1>
         )}
+        <ExportModal>
+          <Button variant="secondary">Export</Button>
+        </ExportModal>
       </nav>
       <div className="w-full h-[calc(100svh-3rem)] flex flex-row">
         <section className="w-full h-[calc(100svh-3rem)] max-w-64 overflow-auto relative">
@@ -98,7 +102,7 @@ function Project() {
         <div className="relative w-full h-full bg-black flex items-center justify-center border-x border-gray-300 dark:border-gray-700">
           {imagePreview}
         </div>
-        <section className="w-full h-[calc(100svh-3rem)] max-w-64 overflow-auto relative">
+        <section className="flex flex-col w-full h-[calc(100svh-3rem)] max-w-64">
           <ClassList
             isPending={currentProjectStore.loadStatus.state !== "success"}
           />
