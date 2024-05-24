@@ -192,6 +192,9 @@ function ProjectActionsSection() {
   );
 }
 
+// const processQueue = new ProcessQueue<string, string>();
+// processQueue.overrideUniqueness = false;
+
 function Index() {
   const appStore = useAppStore((state) => {
     return {
@@ -200,6 +203,25 @@ function Index() {
     };
   });
   useAppStoreLoad(appStore);
+  // useEffect(() => {
+  //   let value = 0;
+  //   const timer = setInterval(async () => {
+  //     const res = value++;
+  //     const v = await processQueue.do("hello", async () => {
+  //       const result = await new Promise<string>((resolve, reject) => {
+  //         setTimeout(() => {
+  //           reject("Test");
+  //           // resolve(`${res}`);
+  //         }, 3000);
+  //       });
+  //       return result;
+  //     });
+  //     console.log(`${res} => ${v.type} ${v.result}`);
+  //   }, 1000);
+  //   return () => {
+  //     clearInterval(timer);
+  //   };
+  // }, []);
 
   return (
     <main className="flex flex-col items-center bg-background w-screen h-svh">
