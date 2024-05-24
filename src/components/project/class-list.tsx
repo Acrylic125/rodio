@@ -162,7 +162,7 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
         <Button
           className="px-0 py-0 w-8 h-8 aspect-square"
           variant="secondary"
-          onClick={(e) => {
+          onMouseDown={(e) => {
             e.preventDefault();
             setCreateClassModalOpen(true);
           }}
@@ -195,7 +195,7 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
                   <li
                     key={virtualRow.key}
                     className="px-1 cursor-pointer h-8"
-                    onClick={() => currentProjectStore.selectClass(cls.id)}
+                    onMouseDown={() => currentProjectStore.selectClass(cls.id)}
                   >
                     <div
                       className={cn(

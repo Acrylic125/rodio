@@ -101,7 +101,7 @@ export function ImageList() {
                         filePath !== currentProjectStore.selectedImage,
                     }
                   )}
-                  onClick={() => {
+                  onMouseDown={() => {
                     currentProjectStore.selectImage(filePath);
                     if (currentProjectStore.project)
                       currentProjectFileStore.load(
@@ -124,28 +124,3 @@ export function ImageList() {
     </>
   );
 }
-
-// imagePaths.map((path) => (
-//   <li
-//     key={path}
-//     className={cn(
-//       "p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
-//       {
-//         "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
-//           path === currentProjectStore.selectedImage,
-//         "text-gray-700 dark:text-gray-300":
-//           path !== currentProjectStore.selectedImage,
-//       }
-//     )}
-//     onClick={() => {
-//       currentProjectStore.selectImage(path);
-//       if (currentProjectStore.project)
-//         currentProjectFileStore.load(
-//           currentProjectStore.project,
-//           path
-//         );
-//     }}
-//   >
-//     {path.split("/").pop()}
-//   </li>
-// ))
