@@ -1,6 +1,12 @@
+import { Label } from "./rodio-project";
+
 export class Lock {
   private _lock = false;
   private _queue: (() => void)[] = [];
+
+  public isLocked() {
+    return this._lock;
+  }
 
   public async acquire() {
     if (!this._lock) {
@@ -23,47 +29,76 @@ export class Lock {
   }
 }
 
-export class ProcessQueue<K, T> {
-  private processMap: Map<
-    K,
-    {
-      lock: Lock;
-      nextId: number;
-      accId: number;
-    }
-  > = new Map();
-  public overridePending = true;
+export class ProcessQueue<T> {
+  private lock = new Lock();
+  private nextId = 0;
+  private accId = 0;
 
-  public async do(key: K, fn: () => Promise<T>) {
-    let process = this.processMap.get(key);
-    if (process === undefined) {
-      process = {
-        lock: new Lock(),
-        nextId: 0,
-        accId: 0,
-      };
-      this.processMap.set(key, process);
-    }
-    const taskId = process.accId++;
+  public async do(fn: () => Promise<T>) {
+    const taskId = this.accId++;
 
-    await process.lock.acquire();
-    const shouldRun = process.nextId === taskId || !this.overridePending;
+    await this.lock.acquire();
+    const shouldRun = this.nextId === taskId;
     try {
       if (shouldRun) {
         const result = await fn();
         return {
           type: "success",
           result,
-        };
+        } as const;
       }
       return {
         type: "skipped",
-      };
+      } as const;
     } finally {
       if (shouldRun) {
-        process.nextId = process.accId;
+        this.nextId = this.accId;
       }
-      process.lock.release();
+      this.lock.release();
     }
+  }
+}
+
+type ProjectFileAction = {
+  type: "label";
+  prev: Label;
+  state: Label;
+};
+
+// export function save(
+//   projectPath: string,
+//   db: RodioProjectDB,
+//   processQueue: ProcessQueue<void>,
+//   labels: Label[]
+// ) {
+//   const res = processQueue.do(async () => {
+//     db.setLabels(projectPath, labels);
+//     console.log("Saving");
+//   });
+// }
+
+export class ProjectFileActionsHistory {
+  private history: ProjectFileAction[] = [];
+  private historyIndex = -1;
+
+  public undo() {
+    if (this.historyIndex < 0) return;
+    const action = this.history[this.historyIndex];
+    this.historyIndex--;
+    return action;
+  }
+
+  public redo() {
+    if (this.historyIndex >= this.history.length - 1) return;
+    this.historyIndex++;
+    return this.history[this.historyIndex];
+  }
+
+  public addAction(action: ProjectFileAction) {
+    this.historyIndex++;
+    if (this.historyIndex < this.history.length) {
+      this.history = this.history.slice(0, this.historyIndex);
+    }
+    this.history.push(action);
   }
 }
