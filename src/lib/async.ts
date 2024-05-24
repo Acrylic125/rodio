@@ -65,18 +65,6 @@ type ProjectFileAction = {
   state: Label;
 };
 
-// export function save(
-//   projectPath: string,
-//   db: RodioProjectDB,
-//   processQueue: ProcessQueue<void>,
-//   labels: Label[]
-// ) {
-//   const res = processQueue.do(async () => {
-//     db.setLabels(projectPath, labels);
-//     console.log("Saving");
-//   });
-// }
-
 export class ProjectFileActionsHistory {
   private history: ProjectFileAction[] = [];
   private historyIndex = -1;
