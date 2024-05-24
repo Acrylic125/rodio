@@ -99,10 +99,10 @@ function Project() {
           {imagePreview}
         </div>
         <section className="w-full h-[calc(100svh-3rem)] max-w-64 overflow-auto relative">
-          <LabelList
+          <ClassList
             isPending={currentProjectStore.loadStatus.state !== "success"}
           />
-          <ClassList
+          <LabelList
             isPending={currentProjectStore.loadStatus.state !== "success"}
           />
         </section>
