@@ -8,11 +8,12 @@ import { NewLabelBox } from "./new-label-box";
 import { LabelBox } from "./label-box";
 import { useKeyPress } from "@/lib/use-keypress";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
-import { Label, LabelId } from "@/lib/rodio-project";
+import { Label, LabelId, RodioProject } from "@/lib/rodio-project";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { nanoid } from "nanoid";
-import { useMutation } from "@tanstack/react-query";
 import { ProcessQueue } from "@/lib/async";
+import { useToast } from "../ui/use-toast";
+import { ToastAction } from "../ui/toast";
 
 type Cursor =
   | (typeof labelBoxAnchors)[number]["cursor"]
@@ -110,15 +111,42 @@ function useImageContainer() {
   };
 }
 
-function useMutateLabel() {
+function useSaveLabels(projectPath: string, project: RodioProject | null) {
+  const { toast } = useToast();
   const processQueue = useMemo(() => {
-    return new ProcessQueue<LabelId, void>();
+    return new ProcessQueue<void>();
   }, []);
-  const createLabelMut = useMutation({
-    mutationFn: async (label: Label) => {
-      await processQueue.do(label.id, async () => {});
+  const saveLabels = useCallback(
+    async (labels: Label[], requestRevert: () => void) => {
+      async function doSave() {
+        if (project === null) return;
+        try {
+          await project.db.setLabels(projectPath, labels);
+        } catch (err) {
+          toast({
+            title: "Failed to save",
+            action: (
+              <div className="flex flex-row gap-2">
+                <ToastAction onMouseDown={requestRevert} altText="Revert">
+                  Revert
+                </ToastAction>
+                <ToastAction onMouseDown={doSave} altText="Try again">
+                  Try again
+                </ToastAction>
+              </div>
+            ),
+          });
+          console.error(err);
+        }
+      }
+      return processQueue.do(doSave);
     },
-  });
+    [projectPath, project, processQueue.do, toast]
+  );
+  return {
+    processQueue,
+    saveLabels,
+  };
 }
 
 export default function ImagePreview({
@@ -132,14 +160,18 @@ export default function ImagePreview({
   const { imageRef, imageContainerSize, updateContainerSize } =
     useImageContainer();
   const currentProjectFileStore = useCurrentProjectFileStore(
-    ({ labels, tempLabels, setLabels, setTempLabels }) => {
+    ({ projectPath, project, labels, setLabels }) => {
       return {
+        projectPath,
+        project,
         labels,
-        tempLabels,
         setLabels,
-        setTempLabels,
       };
     }
+  );
+  const { saveLabels } = useSaveLabels(
+    currentProjectFileStore.projectPath,
+    currentProjectFileStore.project
   );
   const [newLabel, setNewLabel] = useState<{
     pos1: Pos;
@@ -193,8 +225,9 @@ export default function ImagePreview({
         x: Math.max(newLabel.pos1.x, newLabel.pos2.x),
         y: Math.max(newLabel.pos1.y, newLabel.pos2.y),
       };
-      currentProjectFileStore.setLabels((prev) => {
-        if (currentProjectStore.selectedClass === null) return prev;
+
+      const prev = currentProjectFileStore.labels;
+      if (currentProjectStore.selectedClass !== null) {
         const newLabels = new Map(prev);
         newLabels.set(id, {
           id,
@@ -202,34 +235,47 @@ export default function ImagePreview({
           start,
           end,
         });
-        return newLabels;
-      });
+        currentProjectFileStore.setLabels(newLabels);
+        saveLabels(Array.from(newLabels.values()), () => {
+          currentProjectFileStore.setLabels(prev);
+        });
+      }
+
       setFocusedLabel(id);
       setNewLabel(null);
     }
   }, [
+    currentProjectFileStore.labels,
     currentProjectStore.selectedClass,
     newLabel,
     setFocusedLabel,
     setNewLabel,
     currentProjectFileStore.setLabels,
+    saveLabels,
   ]);
   const onResize = useCallback(
     (id: LabelId, start: Pos, end: Pos) => {
-      currentProjectFileStore.setLabels((prev) => {
+      const prev = currentProjectFileStore.labels;
+      const label = prev.get(id);
+      if (label) {
         const newLabels = new Map(prev);
-        const label = newLabels.get(id);
-        if (!label) return newLabels;
         newLabels.set(id, {
           id: label.id,
           class: label.class,
           start,
           end,
         });
-        return newLabels;
-      });
+        currentProjectFileStore.setLabels(newLabels);
+        saveLabels(Array.from(newLabels.values()), () => {
+          currentProjectFileStore.setLabels(prev);
+        });
+      }
     },
-    [currentProjectFileStore.setLabels]
+    [
+      currentProjectFileStore.labels,
+      currentProjectFileStore.setLabels,
+      saveLabels,
+    ]
   );
   const { cursor, setLabelSuggestedCursor } = useImagePreviewCursors({
     mode,
@@ -240,18 +286,15 @@ export default function ImagePreview({
     const _focuusedLabel = focuusedLabel;
     if (_focuusedLabel === null) return;
     setFocusedLabel(null);
-    currentProjectFileStore.setLabels((prev) => {
-      if (prev.get(_focuusedLabel) === undefined) return prev;
+    const prev = currentProjectFileStore.labels;
+    if (prev.get(_focuusedLabel) !== undefined) {
       const newLabels = new Map(prev);
       newLabels.delete(_focuusedLabel);
-      return newLabels;
-    });
-    currentProjectFileStore.setTempLabels((prev) => {
-      if (prev.get(_focuusedLabel) === undefined) return prev;
-      const newLabels = new Map(prev);
-      newLabels.delete(_focuusedLabel);
-      return newLabels;
-    });
+      currentProjectFileStore.setLabels(newLabels);
+      saveLabels(Array.from(newLabels.values()), () => {
+        currentProjectFileStore.setLabels(prev);
+      });
+    }
   }, ["Backspace"]);
 
   return (
@@ -328,27 +371,6 @@ export default function ImagePreview({
               />
             );
           })}
-          {Array.from(currentProjectFileStore.tempLabels.values()).map(
-            (label) => {
-              return (
-                <LabelBox
-                  key={label.id}
-                  id={label.id}
-                  color={
-                    currentProjectStore.classesMap.get(label.class)?.color ??
-                    "#000000"
-                  }
-                  isSelected={focuusedLabel === label.id}
-                  onRequestSelect={setFocusedLabel}
-                  onResize={onResize}
-                  onRequestCursorChange={setLabelSuggestedCursor}
-                  containerDimensions={imageContainerSize}
-                  defaultStartPos={label.start}
-                  defaultEndPos={label.end}
-                />
-              );
-            }
-          )}
           {newLabel && (
             <NewLabelBox
               containerDimensions={imageContainerSize}
