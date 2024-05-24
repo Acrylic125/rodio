@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ColorPicker, colors } from "../ui/color-picker";
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { cn, resolveError } from "@/lib/utils";
 import { Skeleton } from "../ui/skeleton";
 import { useMutation } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 export function CreateOrEditClassModal({
   isOpen,
@@ -130,6 +131,18 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
       setCreateClassModalOpen(false);
     },
   });
+  const parentRef = useRef(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: currentProjectStore.classesMap.size,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 32, // h-8
+    overscan: 5,
+  });
+  const classes = useMemo(
+    () => Array.from(currentProjectStore.classesMap.values()),
+    [currentProjectStore.classesMap]
+  );
 
   return (
     <>
@@ -159,37 +172,51 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
         </Button>
       </div>
 
-      <ul className="flex flex-col gap-0 py-2">
-        {isPending
-          ? new Array(5).fill(null).map((_, i) => (
-              <li key={i} className="p-1">
-                <Skeleton className="w-full h-8" />
-              </li>
-            ))
-          : Array.from(currentProjectStore.classesMap.values()).map((cls) => (
-              <li
-                key={cls.id}
-                className="px-1 cursor-pointer"
-                onClick={() => currentProjectStore.selectClass(cls.id)}
-              >
-                <div
-                  className={cn(
-                    "flex flex-row items-center gap-2 p-1 transition ease-in-out duration-200",
-                    {
-                      "bg-primary text-gray-50 dark:text-gray-950 rounded-sm":
-                        cls.id === currentProjectStore.selectedClass,
-                    }
-                  )}
-                >
-                  <div
-                    className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: cls.color }}
-                  />
-                  <p>{cls.name}</p>
-                </div>
-              </li>
-            ))}
-      </ul>
+      <div
+        className="flex-1 flex flex-col gap-0 py-2 overflow-auto"
+        ref={parentRef}
+      >
+        <ul
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          {isPending
+            ? new Array(5).fill(null).map((_, i) => (
+                <li key={i} className="p-1">
+                  <Skeleton className="w-full h-8" />
+                </li>
+              ))
+            : rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const cls = classes[virtualRow.index];
+                return (
+                  <li
+                    key={virtualRow.key}
+                    className="px-1 cursor-pointer h-8"
+                    onClick={() => currentProjectStore.selectClass(cls.id)}
+                  >
+                    <div
+                      className={cn(
+                        "flex flex-row items-center gap-2 p-1 transition ease-in-out duration-200",
+                        {
+                          "bg-primary text-gray-50 dark:text-gray-950 rounded-sm":
+                            cls.id === currentProjectStore.selectedClass,
+                        }
+                      )}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: cls.color }}
+                      />
+                      <p>{cls.name}</p>
+                    </div>
+                  </li>
+                );
+              })}
+        </ul>
+      </div>
     </>
   );
 }
