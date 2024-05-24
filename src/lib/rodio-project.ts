@@ -152,31 +152,32 @@ export class RodioProjectDB implements RodioProjectFile {
     );
   }
 
-  public async setLabels(path: string, labels: Label[]) {
+  public async setLabels(filePath: string, labels: Label[]) {
     const db = await this.db();
 
     let sql = `
       DELETE FROM labels WHERE path = $1;
     `;
-    const params: any[] = [path];
+    const params: any[] = [filePath];
     for (const label of labels) {
-      let lastParamIndex = params.length;
+      let lastParamIndex = params.length; // 1-indexed.
       sql += `INSERT INTO labels (id, start_x, start_y, end_x, end_y, class_id, path) 
-              VALUES ($${lastParamIndex + 1}, $${lastParamIndex + 2}, ${lastParamIndex + 3}, ${lastParamIndex + 4}, ${lastParamIndex + 5}, ${lastParamIndex + 6});`;
+              VALUES ($${lastParamIndex + 1}, $${lastParamIndex + 2}, $${lastParamIndex + 3}, $${lastParamIndex + 4}, $${lastParamIndex + 5}, $${lastParamIndex + 6}, $${lastParamIndex + 7});`;
       params.push(
         label.id,
         label.start.x,
         label.start.y,
         label.end.x,
         label.end.y,
-        label.class
+        label.class,
+        filePath
       );
     }
 
     return db.execute(sql, params);
   }
 
-  public async addLabel(path: string, label: Label) {
+  public async addLabel(filePath: string, label: Label) {
     const db = await this.db();
     return db.execute(
       `INSERT INTO labels (id, start_x, start_y, end_x, end_y, class_id, path) VALUES ($1, $2, $3, $4, $5, $6);`,
@@ -187,12 +188,12 @@ export class RodioProjectDB implements RodioProjectFile {
         label.end.x,
         label.end.y,
         label.class,
-        path,
+        filePath,
       ]
     );
   }
 
-  public async getLabels(path: string) {
+  public async getLabels(filePath: string) {
     const db = await this.db();
     const labels = await db.select<
       {
@@ -203,7 +204,7 @@ export class RodioProjectDB implements RodioProjectFile {
         end_y: number;
         class_id: LabelClassId;
       }[]
-    >(`SELECT * FROM labels WHERE path = $1`, [path]);
+    >(`SELECT * FROM labels WHERE path = $1`, [filePath]);
     return labels.map((label) => {
       return {
         id: label.id,
