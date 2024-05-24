@@ -152,6 +152,30 @@ export class RodioProjectDB implements RodioProjectFile {
     );
   }
 
+  public async setLabels(path: string, labels: Label[]) {
+    const db = await this.db();
+
+    let sql = `
+      DELETE FROM labels WHERE path = $1;
+    `;
+    const params: any[] = [path];
+    for (const label of labels) {
+      let lastParamIndex = params.length;
+      sql += `INSERT INTO labels (id, start_x, start_y, end_x, end_y, class_id, path) 
+              VALUES ($${lastParamIndex + 1}, $${lastParamIndex + 2}, ${lastParamIndex + 3}, ${lastParamIndex + 4}, ${lastParamIndex + 5}, ${lastParamIndex + 6});`;
+      params.push(
+        label.id,
+        label.start.x,
+        label.start.y,
+        label.end.x,
+        label.end.y,
+        label.class
+      );
+    }
+
+    return db.execute(sql, params);
+  }
+
   public async addLabel(path: string, label: Label) {
     const db = await this.db();
     return db.execute(
