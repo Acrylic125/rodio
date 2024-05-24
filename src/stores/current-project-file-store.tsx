@@ -5,7 +5,6 @@ import { StoreApi, UseBoundStore, create } from "zustand";
 export const useCurrentProjectFileStore: UseBoundStore<
   StoreApi<{
     projectPath: string;
-    project: RodioProject | null;
     loadStatus:
       | {
           state: "idle" | "loading" | "success";
@@ -20,17 +19,10 @@ export const useCurrentProjectFileStore: UseBoundStore<
         | Map<LabelId, Label>
         | ((prev: Map<LabelId, Label>) => Map<LabelId, Label>)
     ) => void;
-    // tempLabels: Map<LabelId, Label>;
-    // setTempLabels: (
-    //   tempLabels:
-    //     | Map<LabelId, Label>
-    //     | ((prev: Map<LabelId, Label>) => Map<LabelId, Label>)
-    // ) => void;
     load: (project: RodioProject, path: string) => Promise<void>;
   }>
 > = create((set) => ({
   projectPath: "",
-  project: null,
   loadStatus: {
     state: "idle",
   },
@@ -60,7 +52,6 @@ export const useCurrentProjectFileStore: UseBoundStore<
       const labels = await project.db.getLabels(path);
       set({
         projectPath: path,
-        project,
         loadStatus: { state: "success" },
         labels: new Map(labels.map((l) => [l.id, l])),
       });
