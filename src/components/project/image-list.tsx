@@ -2,6 +2,7 @@ import { cn, resolveError } from "@/lib/utils";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "../ui/skeleton";
+import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 
 export function ImageList() {
   const currentProjectStore = useCurrentProjectStore((state) => {
@@ -9,6 +10,11 @@ export function ImageList() {
       project: state.project,
       selectedImage: state.selectedImage,
       selectImage: state.selectImage,
+    };
+  });
+  const currentProjectFileStore = useCurrentProjectFileStore((state) => {
+    return {
+      load: state.load,
     };
   });
   const imagesQuery = useQuery({
@@ -61,7 +67,11 @@ export function ImageList() {
                   path !== currentProjectStore.selectedImage,
               }
             )}
-            onClick={() => currentProjectStore.selectImage(path)}
+            onClick={() => {
+              currentProjectStore.selectImage(path);
+              if (currentProjectStore.project)
+                currentProjectFileStore.load(currentProjectStore.project, path);
+            }}
           >
             {path.split("/").pop()}
           </li>
