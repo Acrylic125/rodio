@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FilterIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import ImagePreview from "@/components/project/image-preview";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
@@ -84,19 +83,7 @@ function Project() {
         </ExportModal>
       </nav>
       <div className="w-full h-[calc(100svh-3rem)] flex flex-row">
-        <section className="w-full h-[calc(100svh-3rem)] max-w-64 overflow-auto relative">
-          <div className="flex flex-col gap-2 sticky w-full border-b bg-background/75 backdrop-blur-md border-gray-300 dark:border-gray-700 top-0 p-3">
-            <h2 className="text-gray-500 font-medium">FILES</h2>
-            <div className="flex flex-row gap-2">
-              <Input placeholder="Search" />
-              <Button
-                className="px-0 py-0 w-fit aspect-square"
-                variant="secondary"
-              >
-                <FilterIcon />
-              </Button>
-            </div>
-          </div>
+        <section className="flex flex-col w-full h-[calc(100svh-3rem)] max-w-64">
           <ImageList />
         </section>
         <div className="relative w-full h-full bg-black flex items-center justify-center border-x border-gray-300 dark:border-gray-700">

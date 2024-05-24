@@ -3,6 +3,11 @@ import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "../ui/skeleton";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useRef } from "react";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
+import { FilterIcon } from "lucide-react";
 
 export function ImageList() {
   const currentProjectStore = useCurrentProjectStore((state) => {
@@ -28,6 +33,14 @@ export function ImageList() {
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
   });
+  const imagePaths = imagesQuery.data?.map((image) => image.path) ?? [];
+  const parentRef = useRef(null);
+  const rowVirtualizer = useVirtualizer({
+    count: imagePaths.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 40, // h-10
+    overscan: 5,
+  });
 
   if (imagesQuery.isError) {
     return (
@@ -51,36 +64,88 @@ export function ImageList() {
     );
   }
 
-  const imagePaths = imagesQuery.data.map((image) => image.path);
   return (
-    <ul className="w-full p-2 select-none">
-      {imagePaths.length > 0 ? (
-        imagePaths.map((path) => (
-          <li
-            key={path}
-            className={cn(
-              "p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
-              {
-                "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
-                  path === currentProjectStore.selectedImage,
-                "text-gray-700 dark:text-gray-300":
-                  path !== currentProjectStore.selectedImage,
-              }
-            )}
-            onClick={() => {
-              currentProjectStore.selectImage(path);
-              if (currentProjectStore.project)
-                currentProjectFileStore.load(currentProjectStore.project, path);
-            }}
-          >
-            {path.split("/").pop()}
-          </li>
-        ))
-      ) : (
-        <div className="w-full p-4 flex items-center justify-center">
-          <p>No images found</p>
+    <>
+      <div className="flex flex-col gap-2 w-full border-b border-gray-300 dark:border-gray-700 top-0 p-3">
+        <h2 className="text-gray-500 font-medium">FILES</h2>
+        <div className="flex flex-row gap-2">
+          <Input placeholder="Search" />
+          <Button className="px-0 py-0 w-fit aspect-square" variant="secondary">
+            <FilterIcon />
+          </Button>
         </div>
-      )}
-    </ul>
+      </div>
+      <div
+        className="flex flex-col flex-1 w-full p-2 select-none overflow-auto"
+        ref={parentRef}
+      >
+        <ul
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          {imagePaths.length > 0 ? (
+            rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const filePath = imagePaths[virtualRow.index];
+              return (
+                <li
+                  key={virtualRow.key}
+                  className={cn(
+                    "p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
+                    {
+                      "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
+                        filePath === currentProjectStore.selectedImage,
+                      "text-gray-700 dark:text-gray-300":
+                        filePath !== currentProjectStore.selectedImage,
+                    }
+                  )}
+                  onClick={() => {
+                    currentProjectStore.selectImage(filePath);
+                    if (currentProjectStore.project)
+                      currentProjectFileStore.load(
+                        currentProjectStore.project,
+                        filePath
+                      );
+                  }}
+                >
+                  {filePath.split("/").pop()}
+                </li>
+              );
+            })
+          ) : (
+            <div className="w-full p-4 flex items-center justify-center">
+              <p>No images found</p>
+            </div>
+          )}
+        </ul>
+      </div>
+    </>
   );
 }
+
+// imagePaths.map((path) => (
+//   <li
+//     key={path}
+//     className={cn(
+//       "p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
+//       {
+//         "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
+//           path === currentProjectStore.selectedImage,
+//         "text-gray-700 dark:text-gray-300":
+//           path !== currentProjectStore.selectedImage,
+//       }
+//     )}
+//     onClick={() => {
+//       currentProjectStore.selectImage(path);
+//       if (currentProjectStore.project)
+//         currentProjectFileStore.load(
+//           currentProjectStore.project,
+//           path
+//         );
+//     }}
+//   >
+//     {path.split("/").pop()}
+//   </li>
+// ))
