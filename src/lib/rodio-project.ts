@@ -63,6 +63,10 @@ export type RodioImage = {
   stat: ImageStat;
 };
 
+export function isRodioImageTooLarge(image: RodioImage) {
+  return image.stat.size > 200_000; // 200 KB
+}
+
 export class RodioProjectImages implements RodioProjectFile {
   public readonly type = "dir";
   public readonly relPath: string = "images";
