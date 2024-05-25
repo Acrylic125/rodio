@@ -99,6 +99,21 @@ function ProjectsList() {
         <Skeleton className="w-full h-4" />
       </li>
     ));
+  } else if (projectsQuery.error || appStore.loadStatus.state === "error") {
+    let error = "";
+    if (appStore.loadStatus.state === "error") {
+      error = appStore.loadStatus.message;
+    } else {
+      error = resolveError(projectsQuery.error);
+    }
+    list = (
+      <li className="w-full h-full flex flex-col items-center justify-center gap-1">
+        <h2 className="text-red-500 text-lg text-center">
+          Error loading projects
+        </h2>
+        <p className="text-gray-500 text-center">{error}</p>
+      </li>
+    );
   } else {
     const projects = projectsQuery.data ?? [];
     list =
@@ -129,7 +144,7 @@ function ProjectsList() {
           <h2 className="text-gray-800 dark:text-gray-200 text-xl">
             No projects found
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 text-center">
             Click "New Project" or "Load Existing Project" to get started
           </p>
         </div>
