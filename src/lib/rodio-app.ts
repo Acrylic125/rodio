@@ -62,7 +62,6 @@ export class RodioAppDB implements RodioAppFile {
     const fp = path.join(appPath, this.relPath);
     if (!(await exists(fp))) {
       await writeFile(fp, "");
-      return;
     }
     const db = await Database.load(`sqlite:${fp}`);
 
