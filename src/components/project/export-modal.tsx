@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -20,6 +20,8 @@ import {
 } from "../ui/select";
 import { Input } from "../ui/input";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useBreakpoint } from "@/lib/use-breakpoint";
 
 function ModalFooter({
   nextPage,
@@ -194,6 +196,56 @@ function ExportDistributionInputs({
   );
 }
 
+function DatasetGrid({ images }: { images: string[] }) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: images.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 35,
+    overscan: 5,
+  });
+  const items = rowVirtualizer.getVirtualItems();
+  const { isAboveMd } = useBreakpoint("md");
+  console.log(isAboveMd);
+
+  return (
+    <div ref={parentRef} className="w-full h-72 overflow-auto">
+      <div
+        className="w-full relative"
+        style={{
+          height: rowVirtualizer.getTotalSize(),
+        }}
+      >
+        <div
+          className="absolute top-0 left-0 w-full"
+          style={{
+            transform: `translateY(${items[0]?.start ?? 0}px)`,
+          }}
+        >
+          {items.map((virtualRow) => {
+            const imagePath = images[virtualRow.index];
+            return (
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                className={
+                  virtualRow.index % 2 ? "ListItemOdd" : "ListItemEven"
+                }
+              >
+                {/* <div style={{ padding: "10px 0" }}>
+                  <div>Row {virtualRow.index}</div>
+                  <div>{sentences[virtualRow.index]}</div>
+                </div> */}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExportPreview({
   nextPage,
   prevPage,
@@ -289,70 +341,8 @@ function ExportPreview({
           </div>
         </div>
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-        }}
-      >
-        <div className="py-4">
-          <div className="flex flex-col gap-2">
-            <span>Export Type</span>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an export type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Yolo Models</SelectLabel>
-                  <SelectItem value="yolov8">YoloV8</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </form>
-      <ModalFooter nextPage={nextPage} prevPage={prevPage} />
-    </>
-  );
-}
+      <DatasetGrid images={currentProjectStore.images} />
 
-function ExportOptions({
-  nextPage,
-  prevPage,
-}: {
-  nextPage?: () => void;
-  prevPage?: () => void;
-}) {
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Export Options</DialogTitle>
-        <DialogDescription>
-          View the export preview of the project.
-        </DialogDescription>
-      </DialogHeader>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-        }}
-      >
-        <div className="py-4">
-          <div className="flex flex-col gap-2">
-            <span>Export Type</span>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an export type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Yolo Models</SelectLabel>
-                  <SelectItem value="yolov8">YoloV8</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </form>
       <ModalFooter nextPage={nextPage} prevPage={prevPage} />
     </>
   );
