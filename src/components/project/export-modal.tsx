@@ -22,6 +22,8 @@ import { Input } from "../ui/input";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useBreakpoint } from "@/lib/use-breakpoint";
+import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { cn } from "@/lib/utils";
 
 function ModalFooter({
   nextPage,
@@ -197,19 +199,30 @@ function ExportDistributionInputs({
 }
 
 function DatasetGrid({ images }: { images: string[] }) {
+  const { isAboveMd } = useBreakpoint("md");
+  const { isAboveLg } = useBreakpoint("lg");
+
+  let columns = 2;
+  let imageHeight = 144; // h-36
+  if (isAboveMd) {
+    columns = 3;
+    imageHeight = 176; // h-44
+  }
+  if (isAboveLg) {
+    columns = 4;
+    imageHeight = 208; // h-52
+  }
   const parentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
-    count: images.length,
+    count: Math.ceil(images.length / columns),
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 35,
-    overscan: 5,
+    estimateSize: () => imageHeight,
+    overscan: 3,
   });
   const items = rowVirtualizer.getVirtualItems();
-  const { isAboveMd } = useBreakpoint("md");
-  console.log(isAboveMd);
 
   return (
-    <div ref={parentRef} className="w-full h-72 overflow-auto">
+    <div ref={parentRef} className="w-full h-96 overflow-auto">
       <div
         className="w-full relative"
         style={{
@@ -217,26 +230,43 @@ function DatasetGrid({ images }: { images: string[] }) {
         }}
       >
         <div
-          className="absolute top-0 left-0 w-full"
+          className="absolute top-0 left-0 w-full flex flex-col gap-4"
           style={{
             transform: `translateY(${items[0]?.start ?? 0}px)`,
           }}
         >
           {items.map((virtualRow) => {
-            const imagePath = images[virtualRow.index];
             return (
               <div
                 key={virtualRow.key}
                 data-index={virtualRow.index}
-                ref={rowVirtualizer.measureElement}
-                className={
-                  virtualRow.index % 2 ? "ListItemOdd" : "ListItemEven"
-                }
+                className="w-full flex flex-row gap-4"
               >
-                {/* <div style={{ padding: "10px 0" }}>
-                  <div>Row {virtualRow.index}</div>
-                  <div>{sentences[virtualRow.index]}</div>
-                </div> */}
+                {new Array(columns).fill(null).map((_, i) => {
+                  const index = virtualRow.index * columns + i;
+                  if (index >= images.length) {
+                    return <div key={i} className="w-full h-full" />;
+                  }
+                  const imagePath = images[index];
+                  return (
+                    <div
+                      key={i}
+                      className={cn("w-full", {
+                        "h-36": !isAboveMd,
+                        "h-44": isAboveMd,
+                        "h-52": isAboveLg,
+                      })}
+                    >
+                      <img
+                        loading="lazy"
+                        className="w-full h-full flex flex-1 object-contain bg-black border border-gray-300 dark:border-gray-700 rounded-sm overflow-hidden"
+                        key={i}
+                        src={convertFileSrc(imagePath)}
+                        alt={imagePath}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             );
           })}

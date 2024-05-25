@@ -2,6 +2,7 @@ import Database from "tauri-plugin-sql-api";
 import {
   createDir,
   exists,
+  readBinaryFile,
   readDir,
   readTextFile,
   writeFile,
@@ -63,6 +64,9 @@ export class RodioProjectImages implements RodioProjectFile {
   public async getImages(projectPath: string) {
     const fp = path.join(projectPath, this.relPath);
     const files = await readDir(fp);
+    // const test = await readBinaryFile(filePath)
+    // const blob = new Blob([test], { type: "image/jpeg" });
+
     return files.map((file) => ({
       path: file.path,
     }));
