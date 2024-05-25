@@ -11,7 +11,7 @@ import { Output, object, parse, string } from "valibot";
 import { Migration, migrateSQLite } from "./db";
 import { Pos } from "@/components/project/label-anchors";
 import { isImage } from "@/commands/is-image";
-import { imageStat } from "@/commands/image-stat";
+import { ImageStat, imageStat } from "@/commands/image-stat";
 
 export interface RodioProjectFile {
   readonly type: "file" | "dir";
@@ -58,11 +58,16 @@ export class RodioProjectConfig implements RodioProjectFile {
   }
 }
 
+export type RodioImage = {
+  path: string;
+  stat: ImageStat;
+};
+
 export class RodioProjectImages implements RodioProjectFile {
   public readonly type = "dir";
   public readonly relPath: string = "images";
 
-  public async getImages(projectPath: string) {
+  public async getImages(projectPath: string): Promise<RodioImage[]> {
     const fp = path.join(projectPath, this.relPath);
     const files = await readDir(fp);
     const res = await Promise.allSettled(

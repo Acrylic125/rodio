@@ -24,6 +24,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useBreakpoint } from "@/lib/use-breakpoint";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { cn } from "@/lib/utils";
+import { RodioImage } from "@/lib/rodio-project";
 
 function ModalFooter({
   nextPage,
@@ -198,7 +199,7 @@ function ExportDistributionInputs({
   );
 }
 
-function DatasetGrid({ images }: { images: string[] }) {
+function DatasetGrid({ images }: { images: RodioImage[] }) {
   const { isAboveMd } = useBreakpoint("md");
   const { isAboveLg } = useBreakpoint("lg");
 
@@ -247,7 +248,7 @@ function DatasetGrid({ images }: { images: string[] }) {
                   if (index >= images.length) {
                     return <div key={i} className="w-full h-full" />;
                   }
-                  const imagePath = images[index];
+                  const imageFile = images[index];
                   return (
                     <div
                       key={i}
@@ -261,8 +262,8 @@ function DatasetGrid({ images }: { images: string[] }) {
                         loading="lazy"
                         className="w-full h-full flex flex-1 object-contain bg-black border border-gray-300 dark:border-gray-700 rounded-sm overflow-hidden"
                         key={i}
-                        src={convertFileSrc(imagePath)}
-                        alt={imagePath}
+                        src={convertFileSrc(imageFile.path)}
+                        alt={imageFile.path}
                       />
                     </div>
                   );

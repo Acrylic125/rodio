@@ -34,10 +34,10 @@ export function ImageList() {
   useEffect(() => {
     const unsub = appWindow.listen("tauri://focus", async () => {
       if (!currentProjectStore.project) return;
-      const imagePaths = await currentProjectStore.project.images.getImages(
+      const images = await currentProjectStore.project.images.getImages(
         currentProjectStore.project.projectPath
       );
-      currentProjectStore.setImages(imagePaths.map((image) => image.path));
+      currentProjectStore.setImages(images);
     });
     return () => {
       unsub.then((u) => u());
@@ -68,7 +68,7 @@ export function ImageList() {
         >
           {imagePaths.length > 0 ? (
             rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const filePath = imagePaths[virtualRow.index];
+              const imageFile = imagePaths[virtualRow.index];
               return (
                 <li
                   key={virtualRow.key}
@@ -76,17 +76,17 @@ export function ImageList() {
                     "h-8 p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
                     {
                       "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
-                        filePath === currentProjectStore.selectedImage,
+                        imageFile.path === currentProjectStore.selectedImage,
                       "text-gray-700 dark:text-gray-300":
-                        filePath !== currentProjectStore.selectedImage,
+                        imageFile.path !== currentProjectStore.selectedImage,
                     }
                   )}
                   onMouseDown={() => {
-                    currentProjectStore.selectImage(filePath);
+                    currentProjectStore.selectImage(imageFile.path);
                     if (currentProjectStore.project)
                       currentProjectFileStore.load(
                         currentProjectStore.project,
-                        filePath
+                        imageFile.path
                       );
                   }}
                   style={{
@@ -97,7 +97,7 @@ export function ImageList() {
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
-                  {filePath.split("/").pop()}
+                  {imageFile.path.split("/").pop()}
                 </li>
               );
             })
