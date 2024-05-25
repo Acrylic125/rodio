@@ -2,7 +2,6 @@ import Database from "tauri-plugin-sql-api";
 import {
   createDir,
   exists,
-  readBinaryFile,
   readDir,
   readTextFile,
   writeFile,
@@ -11,6 +10,8 @@ import path from "path";
 import { Output, object, parse, string } from "valibot";
 import { Migration, migrateSQLite } from "./db";
 import { Pos } from "@/components/project/label-anchors";
+import { isImage } from "@/commands/is-image";
+import { imageStat } from "@/commands/image-stat";
 
 export interface RodioProjectFile {
   readonly type: "file" | "dir";
@@ -64,12 +65,39 @@ export class RodioProjectImages implements RodioProjectFile {
   public async getImages(projectPath: string) {
     const fp = path.join(projectPath, this.relPath);
     const files = await readDir(fp);
-    // const test = await readBinaryFile(filePath)
-    // const blob = new Blob([test], { type: "image/jpeg" });
+    const res = await Promise.allSettled(
+      files.map(async (file) => {
+        const isImageFile = await isImage(file.path);
+        if (!isImageFile) {
+          return {
+            path: file.path,
+            isImageFile: false,
+          } as const;
+        }
+        const stat = await imageStat(file.path);
+        return {
+          path: file.path,
+          isImageFile: true,
+          stat,
+        } as const;
+      })
+    );
 
-    return files.map((file) => ({
-      path: file.path,
-    }));
+    return res
+      .map((fileRes) => {
+        if (fileRes.status === "rejected") {
+          console.error(fileRes.reason);
+          return null;
+        }
+        if (!fileRes.value.isImageFile) {
+          return null;
+        }
+        return {
+          path: fileRes.value.path,
+          stat: fileRes.value.stat,
+        };
+      })
+      .filter((file): file is Exclude<typeof file, null> => file !== null);
   }
 
   public async load(projectPath: string) {
