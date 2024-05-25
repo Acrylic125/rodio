@@ -13,6 +13,8 @@ export const useCurrentProjectStore: UseBoundStore<
           state: "error";
           message: string;
         };
+    images: string[];
+    setImages: (images: string[]) => void;
     selectedImage: null | string;
     selectImage: (path: string) => void;
     classesMap: Map<LabelClassId, LabelClass>;
@@ -25,6 +27,10 @@ export const useCurrentProjectStore: UseBoundStore<
   project: null,
   loadStatus: {
     state: "idle",
+  },
+  images: [],
+  setImages(images: string[]) {
+    set({ images });
   },
   selectedImage: null,
   selectImage(path: string) {
@@ -48,8 +54,10 @@ export const useCurrentProjectStore: UseBoundStore<
       const project = new RodioProject(path);
       await project.load();
       const classes = await project.db.getClasses();
+      const images = await project.images.getImages(project.projectPath);
       set({
         project,
+        images: images.map((i) => i.path),
         loadStatus: { state: "success" },
         classesMap: new Map(classes.map((c) => [c.id, c])),
       });

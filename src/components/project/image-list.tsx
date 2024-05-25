@@ -4,10 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "../ui/skeleton";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { FilterIcon } from "lucide-react";
+import { appWindow } from "@tauri-apps/api/window";
 
 export function ImageList() {
   const currentProjectStore = useCurrentProjectStore((state) => {
@@ -15,6 +16,8 @@ export function ImageList() {
       project: state.project,
       selectedImage: state.selectedImage,
       selectImage: state.selectImage,
+      images: state.images,
+      setImages: state.setImages,
     };
   });
   const currentProjectFileStore = useCurrentProjectFileStore((state) => {
@@ -22,18 +25,7 @@ export function ImageList() {
       load: state.load,
     };
   });
-  const imagesQuery = useQuery({
-    queryKey: ["project-images", currentProjectStore.project?.projectPath],
-    queryFn: async () => {
-      const project = currentProjectStore.project;
-      if (project === null) return [];
-      return project.images.getImages(project.projectPath);
-    },
-    enabled: currentProjectStore.project !== null,
-    refetchInterval: 5000,
-    refetchOnWindowFocus: true,
-  });
-  const imagePaths = imagesQuery.data?.map((image) => image.path) ?? [];
+  const imagePaths = currentProjectStore.images;
   const parentRef = useRef(null);
   const rowVirtualizer = useVirtualizer({
     count: imagePaths.length,
@@ -41,28 +33,18 @@ export function ImageList() {
     estimateSize: () => 32, // h-10
     overscan: 5,
   });
-
-  if (imagesQuery.isError) {
-    return (
-      <div className="flex flex-col gap-1 w-full p-4 items-center justify-center">
-        <p className="text-red-500 text-lg text-center">Error loading images</p>
-        <p className="text-gray-600 dark:text-gray-400 text-sm text-center">
-          {resolveError(imagesQuery.error)}
-        </p>
-      </div>
-    );
-  }
-  if (imagesQuery.data === undefined || imagesQuery.isPending) {
-    return (
-      <ul className="w-full p-2 select-none">
-        {new Array(5).fill(null).map((_, i) => (
-          <li key={i} className="p-1">
-            <Skeleton className="w-full h-8" />
-          </li>
-        ))}
-      </ul>
-    );
-  }
+  useEffect(() => {
+    const unsub = appWindow.listen("tauri://focus", async () => {
+      if (!currentProjectStore.project) return;
+      const imagePaths = await currentProjectStore.project.images.getImages(
+        currentProjectStore.project.projectPath
+      );
+      currentProjectStore.setImages(imagePaths.map((image) => image.path));
+    });
+    return () => {
+      unsub.then((u) => u());
+    };
+  }, [currentProjectStore.setImages, currentProjectStore.project]);
 
   return (
     <>
