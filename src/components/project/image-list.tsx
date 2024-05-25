@@ -1,7 +1,5 @@
-import { cn, resolveError } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
-import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "../ui/skeleton";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef } from "react";
