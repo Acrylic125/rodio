@@ -196,6 +196,13 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
                     key={virtualRow.key}
                     className="px-1 cursor-pointer h-8"
                     onMouseDown={() => currentProjectStore.selectClass(cls.id)}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
                   >
                     <div
                       className={cn(

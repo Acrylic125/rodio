@@ -38,7 +38,7 @@ export function ImageList() {
   const rowVirtualizer = useVirtualizer({
     count: imagePaths.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 40, // h-10
+    estimateSize: () => 32, // h-10
     overscan: 5,
   });
 
@@ -93,7 +93,7 @@ export function ImageList() {
                 <li
                   key={virtualRow.key}
                   className={cn(
-                    "p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
+                    "h-8 p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
                     {
                       "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
                         filePath === currentProjectStore.selectedImage,
@@ -108,6 +108,13 @@ export function ImageList() {
                         currentProjectStore.project,
                         filePath
                       );
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
                   {filePath.split("/").pop()}

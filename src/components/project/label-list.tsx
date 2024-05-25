@@ -54,7 +54,17 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
             : rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const label = labels[virtualRow.index];
                 return (
-                  <li key={virtualRow.key} className="p-2 h-10">
+                  <li
+                    key={virtualRow.key}
+                    className="p-2 h-10"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
                     <div className="flex flex-row items-center gap-2">
                       <div
                         className="w-4 h-4 rounded-full"
