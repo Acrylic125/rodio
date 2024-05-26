@@ -7,8 +7,8 @@ export async function imageOptimiser(
 ) {
   const stat: string = await invoke("image_optimiser", {
     filePath,
-    width,
-    height,
+    width: Math.round(width),
+    height: Math.round(height),
   });
   return stat;
 }

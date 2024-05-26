@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { Stage, Layer } from "react-konva";
-import { cn } from "@/lib/utils";
+import { cn, resolveError } from "@/lib/utils";
 import { NewLabelBox } from "./new-label-box";
 import { LabelBox } from "./label-box";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
@@ -9,7 +9,8 @@ import { useImageContainer } from "./use-image-container";
 import { useSaveLabels } from "./use-save-labels";
 import { useLabelActions } from "./use-label-actions";
 import { useImagePreviewCursors } from "./use-image-preview-cursors";
-import { useOptimisedImage } from "../image/image";
+import { useOptimisedImage } from "../image/use-optimised-image";
+import { Loader2 } from "lucide-react";
 
 export default function ImagePreview({
   currentPath,
@@ -61,22 +62,46 @@ export default function ImagePreview({
     newLabel,
   });
   const img = useOptimisedImage(imageRef, currentPath);
-  console.log(img.data);
+
+  let imageElement = null;
+  if (img.isPending && !img.data) {
+    imageElement = (
+      <Loader2 className="text-primary w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 animate-spin" />
+    );
+  } else if (img.isError) {
+    imageElement = (
+      <div className="flex flex-col gap-2">
+        <h2 className="text-red-500 text-lg font-medium text-center">
+          Error loading image
+        </h2>
+        <h2 className="text-gray-500 dark:text-gray-500 font-medium text-center">
+          {resolveError(img.error)}
+        </h2>
+      </div>
+    );
+  }
 
   return (
     <>
-      <img
-        src={img.data ? convertFileSrc(img.data) : ""}
-        loading="lazy"
-        alt={`Preview ${currentPath}`}
-        className="w-full h-full object-contain select-none"
-        ref={imageRef}
-        draggable={false}
-        onLoad={(e) => {
-          if (!(e.target instanceof HTMLImageElement)) return;
-          updateContainerSize(e.target);
-        }}
-      />
+      <div className="w-full h-full relative">
+        <img
+          src={img.data ? convertFileSrc(img.data) : ""}
+          loading="lazy"
+          alt={`Preview ${currentPath}`}
+          className="w-full h-full object-contain select-none"
+          ref={imageRef}
+          draggable={false}
+          onLoad={(e) => {
+            if (!(e.target instanceof HTMLImageElement)) return;
+            updateContainerSize(e.target);
+          }}
+        />
+        {imageElement !== null && (
+          <div className="absolute top-0 left-0 bg-black w-full h-full flex flex-col items-center justify-center">
+            {imageElement}
+          </div>
+        )}
+      </div>
       <Stage
         width={imageContainerSize.width}
         height={imageContainerSize.height}

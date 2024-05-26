@@ -63,10 +63,18 @@ pub async fn image_optimiser(
         None => return Err("Failed to get cache directory".to_string()),
     };
     let desired_threshold = match high {
-        high if high <= ImageResizeThreshold::VerySmall as u32 => ImageResizeThreshold::VerySmall,
-        high if high <= ImageResizeThreshold::Small as u32 => ImageResizeThreshold::Small,
-        high if high <= ImageResizeThreshold::Medium as u32 => ImageResizeThreshold::Medium,
-        high if high <= ImageResizeThreshold::Large as u32 => ImageResizeThreshold::Large,
+        high if high <= ImageResizeThreshold::VerySmall.value().desired_value => {
+            ImageResizeThreshold::VerySmall
+        }
+        high if high <= ImageResizeThreshold::Small.value().desired_value => {
+            ImageResizeThreshold::Small
+        }
+        high if high <= ImageResizeThreshold::Medium.value().desired_value => {
+            ImageResizeThreshold::Medium
+        }
+        high if high <= ImageResizeThreshold::Large.value().desired_value => {
+            ImageResizeThreshold::Large
+        }
         _ => ImageResizeThreshold::VeryLarge,
     }
     .value();
