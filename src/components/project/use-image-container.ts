@@ -51,6 +51,9 @@ export function useImageContainer() {
       updateContainerSize(target);
     });
     resizeObserver.observe(imageRef.current);
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [imageRef.current, updateContainerSize]);
   return {
     imageRef,

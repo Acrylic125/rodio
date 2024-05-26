@@ -9,6 +9,7 @@ import { useImageContainer } from "./use-image-container";
 import { useSaveLabels } from "./use-save-labels";
 import { useLabelActions } from "./use-label-actions";
 import { useImagePreviewCursors } from "./use-image-preview-cursors";
+import { useOptimisedImage } from "../image/image";
 
 export default function ImagePreview({
   currentPath,
@@ -59,11 +60,13 @@ export default function ImagePreview({
     mode,
     newLabel,
   });
+  const img = useOptimisedImage(imageRef, currentPath);
+  console.log(img.data);
 
   return (
     <>
       <img
-        src={convertFileSrc(currentPath)}
+        src={img.data ? convertFileSrc(img.data) : ""}
         loading="lazy"
         alt={`Preview ${currentPath}`}
         className="w-full h-full object-contain select-none"

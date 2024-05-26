@@ -39,6 +39,7 @@ function Project() {
     if (currentProjectStore.selectedImage !== null) {
       imagePreview = (
         <ImagePreview
+          key={currentProjectStore.selectedImage}
           currentPath={currentProjectStore.selectedImage}
           mode="label"
         />

@@ -1,4 +1,12 @@
+#[path = "../utils/mod.rs"]
+mod utils;
+
 use std::path::Path;
+use utils::image_utils::{fix_orientation, get_orientation};
+
+use image::{DynamicImage, GenericImageView};
+
+use self::utils::image_utils::NoFixNeededReason;
 
 const IMAGES_CACHE_DIR: &str = "images";
 
@@ -72,20 +80,37 @@ pub async fn image_optimiser(
         current_file_name.to_string_lossy()
     );
 
-    let image_cache_full_path = cache_dir
-        .join(IMAGES_CACHE_DIR)
-        .join(&file_name_with_prefix);
+    let parent = cache_dir.join(IMAGES_CACHE_DIR);
+    let image_cache_full_path = parent.join(&file_name_with_prefix);
     if image_cache_full_path.exists() {
         return Ok(image_cache_full_path.to_string_lossy().to_string());
     }
+    // Create directory if it doesn't exist
+    if !parent.exists() {
+        match std::fs::create_dir_all(parent) {
+            Ok(_) => (),
+            Err(e) => return Err(e.to_string()),
+        }
+    }
 
-    let img = match image::open(&Path::new(&file_path)) {
+    let img_buf = match std::fs::read(&file_path) {
+        Ok(img_buf) => img_buf,
+        Err(e) => return Err(e.to_string()),
+    };
+    let mut dyn_img = match image::load_from_memory(&img_buf) {
         Ok(img) => img,
         Err(e) => return Err(e.to_string()),
     };
+    let orientation = match get_orientation(&img_buf) {
+        Ok(orientation) => orientation,
+        Err(NoFixNeededReason::AleadyCorrect) => 1,
+        Err(NoFixNeededReason::NoExif) => 1,
+        Err(err) => return Err(format!("Failed to get orientation: {:?}", err).to_string()),
+    };
 
-    let (new_width, new_height) = if width > height {
-        if width <= desired_threshold.desired_value {
+    let (img_width, img_height) = dyn_img.dimensions();
+    let (new_width, new_height) = if img_width > img_height {
+        if img_width <= desired_threshold.desired_value {
             return Ok(file_path);
         } else {
             (
@@ -94,7 +119,7 @@ pub async fn image_optimiser(
             )
         }
     } else {
-        if height <= desired_threshold.desired_value {
+        if img_height <= desired_threshold.desired_value {
             return Ok(file_path);
         } else {
             (
@@ -104,11 +129,15 @@ pub async fn image_optimiser(
         }
     };
 
-    match img
-        .resize(new_width, new_height, image::imageops::FilterType::Lanczos3)
-        .save(&Path::new(&image_cache_full_path))
-    {
+    dyn_img = dyn_img.resize(new_width, new_height, image::imageops::FilterType::Lanczos3);
+    let mut img = dyn_img.to_rgb8();
+    img = fix_orientation(img, orientation);
+
+    match img.save(&Path::new(&image_cache_full_path)) {
         Ok(_) => return Ok(image_cache_full_path.to_string_lossy().to_string()),
-        Err(e) => return Err(e.to_string()),
+        Err(e) => {
+            println!("Error: {}", e.to_string());
+            return Err(e.to_string());
+        }
     };
 }

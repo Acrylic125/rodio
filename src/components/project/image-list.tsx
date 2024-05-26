@@ -12,7 +12,6 @@ import { RodioImage, isRodioImageTooLarge } from "@/lib/rodio-project";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,

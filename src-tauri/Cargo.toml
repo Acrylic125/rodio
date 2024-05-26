@@ -27,6 +27,8 @@ tauri = { version = "1", features = [
 ] }
 mime_guess = "2.0.4"
 image = "0.25.1"
+kamadak-exif = "0.5.5"
+
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 specta = "1"
