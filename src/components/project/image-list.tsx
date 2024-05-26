@@ -276,8 +276,8 @@ export function ImageList() {
                                 {")"}
                               </h4>
                               <p className="text-sm text-muted-foreground">
-                                The image file is too big and may cause the
-                                application to slow down.
+                                The image file is using up a lot of space.
+                                Consider shrinking it.
                               </p>
                             </div>
                             <div className="flex flex-col gap2">

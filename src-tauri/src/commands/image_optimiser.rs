@@ -2,11 +2,11 @@
 mod utils;
 
 use std::path::Path;
-use utils::image_utils::{fix_orientation, get_orientation};
+use utils::image_utils::{fix_orientation_rgba, get_orientation};
 
-use image::{DynamicImage, GenericImageView};
+use image::{ColorType, DynamicImage, GenericImage, GenericImageView, ImageBuffer};
 
-use self::utils::image_utils::NoFixNeededReason;
+use self::utils::image_utils::{fix_orientation_rgb, NoFixNeededReason};
 
 const IMAGES_CACHE_DIR: &str = "images";
 
@@ -137,15 +137,57 @@ pub async fn image_optimiser(
         }
     };
 
+    let dyn_img_color_type = match get_support_image_color_type(&dyn_img) {
+        Some(color_type) => color_type,
+        None => return Err("Unsupported image color type".to_string()),
+    };
     dyn_img = dyn_img.resize(new_width, new_height, image::imageops::FilterType::Lanczos3);
-    let mut img = dyn_img.to_rgb8();
-    img = fix_orientation(img, orientation);
 
-    match img.save(&Path::new(&image_cache_full_path)) {
-        Ok(_) => return Ok(image_cache_full_path.to_string_lossy().to_string()),
-        Err(e) => {
-            println!("Error: {}", e.to_string());
-            return Err(e.to_string());
+    match dyn_img_color_type {
+        SupportedImageColorType::Rgba => {
+            let mut img = dyn_img.into_rgba8();
+            if orientation > 1 {
+                img = fix_orientation_rgba(img, orientation);
+            }
+
+            match img.save(&Path::new(&image_cache_full_path)) {
+                Ok(_) => return Ok(image_cache_full_path.to_string_lossy().to_string()),
+                Err(e) => {
+                    println!("Error: {}", e.to_string());
+                    return Err(e.to_string());
+                }
+            };
+        }
+        SupportedImageColorType::Rgb => {
+            let mut img = dyn_img.into_rgb8();
+            if orientation > 1 {
+                img = fix_orientation_rgb(img, orientation);
+            }
+
+            match img.save(&Path::new(&image_cache_full_path)) {
+                Ok(_) => return Ok(image_cache_full_path.to_string_lossy().to_string()),
+                Err(e) => {
+                    println!("Error: {}", e.to_string());
+                    return Err(e.to_string());
+                }
+            };
         }
     };
+}
+
+enum SupportedImageColorType {
+    Rgb,
+    Rgba,
+}
+
+fn get_support_image_color_type(image: &DynamicImage) -> Option<SupportedImageColorType> {
+    match image.color() {
+        ColorType::Rgba8 | ColorType::Rgba16 | ColorType::Rgba32F => {
+            Some(SupportedImageColorType::Rgba)
+        }
+        ColorType::Rgb8 | ColorType::Rgb16 | ColorType::Rgb32F => {
+            Some(SupportedImageColorType::Rgb)
+        }
+        _ => None,
+    }
 }

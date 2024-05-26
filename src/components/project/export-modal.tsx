@@ -25,6 +25,8 @@ import { useBreakpoint } from "@/lib/use-breakpoint";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { cn } from "@/lib/utils";
 import { RodioImage } from "@/lib/rodio-project";
+import { useOptimisedImage } from "../image/use-optimised-image";
+import { Loader2 } from "lucide-react";
 
 function ModalFooter({
   nextPage,
@@ -199,6 +201,44 @@ function ExportDistributionInputs({
   );
 }
 
+function DatasetGridItem({ image }: { image: RodioImage }) {
+  const ref = useRef<HTMLImageElement>(null);
+  const img = useOptimisedImage(ref, image.path, "dataset-grid");
+
+  let imageElement = null;
+  if (img.isPending && !img.data) {
+    imageElement = <Loader2 className="text-primary w-8 h-8 animate-spin" />;
+  } else if (img.isError) {
+    imageElement = (
+      <div className="flex flex-col gap-2">
+        <h2 className="text-red-500 text-lg font-medium text-center">
+          Error loading image
+        </h2>
+        {/* <h2 className="text-gray-500 dark:text-gray-500 font-medium text-center">
+          {resolveError(img.error)}
+        </h2> */}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full bg-black">
+      <img
+        ref={ref}
+        loading="lazy"
+        className="w-full h-full flex flex-1 object-contain bg-black border border-gray-300 dark:border-gray-700 rounded-sm overflow-hidden"
+        src={img.data ? convertFileSrc(img.data) : ""}
+        alt={image.path}
+      />
+      {imageElement !== null && (
+        <div className="absolute top-0 left-0 bg-black w-full h-full flex flex-col items-center justify-center">
+          {imageElement}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DatasetGrid({ images }: { images: RodioImage[] }) {
   const { isAboveMd } = useBreakpoint("md");
   const { isAboveLg } = useBreakpoint("lg");
@@ -218,7 +258,7 @@ function DatasetGrid({ images }: { images: RodioImage[] }) {
     count: Math.ceil(images.length / columns),
     getScrollElement: () => parentRef.current,
     estimateSize: () => imageHeight,
-    overscan: 3,
+    overscan: 2,
   });
   const items = rowVirtualizer.getVirtualItems();
 
@@ -258,13 +298,7 @@ function DatasetGrid({ images }: { images: RodioImage[] }) {
                         "h-52": isAboveLg,
                       })}
                     >
-                      <img
-                        loading="lazy"
-                        className="w-full h-full flex flex-1 object-contain bg-black border border-gray-300 dark:border-gray-700 rounded-sm overflow-hidden"
-                        key={i}
-                        src={convertFileSrc(imageFile.path)}
-                        alt={imageFile.path}
-                      />
+                      <DatasetGridItem image={imageFile} />
                     </div>
                   );
                 })}

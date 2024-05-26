@@ -1,5 +1,5 @@
 use exif::{In, Tag};
-use image::{imageops, DynamicImage, RgbImage};
+use image::{imageops, DynamicImage, GenericImage, GenericImageView, Pixel, RgbImage, RgbaImage};
 use std::io::Cursor;
 
 #[derive(Debug)]
@@ -31,7 +31,31 @@ pub fn get_orientation(raw_image: &[u8]) -> Result<u32, NoFixNeededReason> {
     }
 }
 
-pub fn fix_orientation(mut image: RgbImage, orientation: u32) -> RgbImage {
+pub fn fix_orientation_rgb(mut image: RgbImage, orientation: u32) -> RgbImage {
+    if orientation > 8 {
+        return image;
+    }
+    // https://magnushoff.com/articles/jpeg-orientation/
+    let _orientation = orientation - 1;
+
+    if _orientation & 0b100 != 0 {
+        // Flip diagonal
+        image = imageops::rotate90(&image);
+        imageops::flip_horizontal_in_place(&mut image);
+    }
+
+    if _orientation & 0b010 != 0 {
+        imageops::rotate180_in_place(&mut image);
+    }
+
+    if _orientation & 0b001 != 0 {
+        imageops::flip_horizontal_in_place(&mut image);
+    }
+
+    image
+}
+
+pub fn fix_orientation_rgba(mut image: RgbaImage, orientation: u32) -> RgbaImage {
     if orientation > 8 {
         return image;
     }
