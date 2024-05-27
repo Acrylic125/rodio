@@ -67,6 +67,18 @@ export function isRodioImageTooLarge(image: RodioImage) {
   return image.stat.size > 200_000; // 200 KB
 }
 
+export class RodioProjectCache implements RodioProjectFile {
+  public readonly type = "dir";
+  public readonly relPath: string = "cache";
+
+  public async load(projectPath: string) {
+    const fp = path.join(projectPath, this.relPath);
+    if (!(await exists(fp))) {
+      await createDir(fp);
+    }
+  }
+}
+
 export class RodioProjectImages implements RodioProjectFile {
   public readonly type = "dir";
   public readonly relPath: string = "images";
@@ -294,6 +306,7 @@ export class RodioProject {
   public config = new RodioProjectConfig();
   public images = new RodioProjectImages();
   public db = new RodioProjectDB();
+  public cache = new RodioProjectCache();
 
   constructor(public projectPath: string) {}
 
@@ -316,7 +329,7 @@ export class RodioProject {
   }
 
   public getAllProjectFiles(): RodioProjectFile[] {
-    return [this.config, this.images, this.db];
+    return [this.config, this.images, this.db, this.cache];
   }
 
   public getProjectFileFullPath(projectFile: RodioProjectFile) {

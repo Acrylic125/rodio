@@ -34,6 +34,7 @@ function getThreshold(width: number, height: number): ImageResizeThreshold {
 export function useOptimisedImage(
   ref: React.RefObject<HTMLImageElement>,
   src: string,
+  cacheDir: string = "",
   scope: string = ""
 ) {
   const [imageSize, setImageSize] = useState<{
@@ -63,7 +64,8 @@ export function useOptimisedImage(
     queryKey: [`image-${scope}`, src],
     queryFn: async () => {
       if (!imageSize) return;
-      return imageOptimiser(src, imageSize.width, imageSize.height);
+      if (cacheDir === "") throw new Error("Cache directory not set");
+      return imageOptimiser(src, imageSize.width, imageSize.height, cacheDir);
     },
     enabled: !!imageSize,
   });

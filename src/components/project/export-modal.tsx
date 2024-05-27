@@ -24,7 +24,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useBreakpoint } from "@/lib/use-breakpoint";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { cn } from "@/lib/utils";
-import { RodioImage } from "@/lib/rodio-project";
+import { RodioImage, RodioProject } from "@/lib/rodio-project";
 import { useOptimisedImage } from "../image/use-optimised-image";
 import { Loader2 } from "lucide-react";
 
@@ -201,9 +201,15 @@ function ExportDistributionInputs({
   );
 }
 
-function DatasetGridItem({ image }: { image: RodioImage }) {
+function DatasetGridItem({
+  image,
+  cacheDir,
+}: {
+  image: RodioImage;
+  cacheDir: string;
+}) {
   const ref = useRef<HTMLImageElement>(null);
-  const img = useOptimisedImage(ref, image.path, "dataset-grid");
+  const img = useOptimisedImage(ref, image.path, cacheDir, "dataset-grid");
 
   let imageElement = null;
   if (img.isPending && !img.data) {
@@ -239,7 +245,13 @@ function DatasetGridItem({ image }: { image: RodioImage }) {
   );
 }
 
-function DatasetGrid({ images }: { images: RodioImage[] }) {
+function DatasetGrid({
+  images,
+  cacheDir,
+}: {
+  images: RodioImage[];
+  cacheDir: string;
+}) {
   const { isAboveMd } = useBreakpoint("md");
   const { isAboveLg } = useBreakpoint("lg");
 
@@ -298,7 +310,7 @@ function DatasetGrid({ images }: { images: RodioImage[] }) {
                         "h-52": isAboveLg,
                       })}
                     >
-                      <DatasetGridItem image={imageFile} />
+                      <DatasetGridItem image={imageFile} cacheDir={cacheDir} />
                     </div>
                   );
                 })}
@@ -323,9 +335,10 @@ function ExportPreview({
     validation: 0.2,
     test: 0.1,
   });
-  const currentProjectStore = useCurrentProjectStore(({ images }) => {
+  const currentProjectStore = useCurrentProjectStore(({ images, project }) => {
     return {
       images,
+      project,
     };
   });
   const numberOfImages = useMemo(() => {
@@ -406,7 +419,14 @@ function ExportPreview({
           </div>
         </div>
       </div>
-      <DatasetGrid images={currentProjectStore.images} />
+      {currentProjectStore.project && (
+        <DatasetGrid
+          images={currentProjectStore.images}
+          cacheDir={currentProjectStore.project.getProjectFileFullPath(
+            currentProjectStore.project.cache
+          )}
+        />
+      )}
 
       <ModalFooter nextPage={nextPage} prevPage={prevPage} />
     </>

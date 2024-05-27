@@ -3224,12 +3224,14 @@ dependencies = [
 name = "rodio"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "derivative",
  "image 0.25.1",
  "kamadak-exif",
  "mime_guess",
  "serde",
  "serde_json",
+ "sha2",
  "specta",
  "tauri",
  "tauri-build",

@@ -25,6 +25,8 @@ tauri = { version = "1", features = [
     "dialog-all",
     "shell-open",
 ] }
+sha2 = "0.10.8"
+base64 = "0.22.1"
 mime_guess = "2.0.4"
 image = "0.25.1"
 kamadak-exif = "0.5.5"

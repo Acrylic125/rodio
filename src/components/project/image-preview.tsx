@@ -61,7 +61,15 @@ export default function ImagePreview({
     mode,
     newLabel,
   });
-  const img = useOptimisedImage(imageRef, currentPath);
+  const img = useOptimisedImage(
+    imageRef,
+    currentPath,
+    currentProjectStore.project
+      ? currentProjectStore.project.getProjectFileFullPath(
+          currentProjectStore.project.cache
+        )
+      : undefined
+  );
 
   let imageElement = null;
   if (img.isPending && !img.data) {
