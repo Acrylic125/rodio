@@ -1,5 +1,5 @@
 use exif::{In, Tag};
-use image::{imageops, DynamicImage, GenericImage, GenericImageView, Pixel, RgbImage, RgbaImage};
+use image::{imageops, RgbImage, RgbaImage};
 use std::io::Cursor;
 
 #[derive(Debug)]
