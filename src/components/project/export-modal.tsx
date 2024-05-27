@@ -24,7 +24,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useBreakpoint } from "@/lib/use-breakpoint";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { cn } from "@/lib/utils";
-import { RodioImage, RodioProject } from "@/lib/rodio-project";
+import { RodioImage } from "@/lib/rodio-project";
 import { useOptimisedImage } from "../image/use-optimised-image";
 import { Loader2 } from "lucide-react";
 
