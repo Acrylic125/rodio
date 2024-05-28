@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Button } from "../ui/button";
+import { Button } from "../../ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "../ui/dialog";
+} from "../../ui/dialog";
 import {
   Select,
   SelectContent,
@@ -17,16 +17,16 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
-import { Input } from "../ui/input";
+} from "../../ui/select";
+import { Input } from "../../ui/input";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useBreakpoint } from "@/lib/use-breakpoint";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { cn } from "@/lib/utils";
 import { RodioImage } from "@/lib/rodio-project";
-import { useOptimisedImage } from "../image/use-optimised-image";
-import { Loader2 } from "lucide-react";
+import { useOptimisedImage } from "../../image/use-optimised-image";
+import { Skeleton } from "../../ui/skeleton";
 
 function ModalFooter({
   nextPage,
@@ -94,20 +94,17 @@ function SelectExportType({
   );
 }
 
+type ExportDistributionType = "train" | "validation" | "test";
+type ExportDistribution = {
+  [key in ExportDistributionType]: number;
+};
+
 function ExportDistributionInputs({
   numberOfImages,
   onDistributionChange,
 }: {
-  numberOfImages: {
-    train: number;
-    validation: number;
-    test: number;
-  };
-  onDistributionChange?: (distribution: {
-    train: number;
-    validation: number;
-    test: number;
-  }) => void;
+  numberOfImages: ExportDistribution;
+  onDistributionChange?: (distribution: ExportDistribution) => void;
 }) {
   const [train, setTrain] = useState("70");
   const [validation, setValidation] = useState("30");
@@ -204,43 +201,64 @@ function ExportDistributionInputs({
 function DatasetGridItem({
   image,
   cacheDir,
+  type,
 }: {
   image: RodioImage;
   cacheDir: string;
+  type?: ExportDistributionType;
 }) {
   const ref = useRef<HTMLImageElement>(null);
   const img = useOptimisedImage(ref, image.path, cacheDir, "dataset-grid");
 
-  let imageElement = null;
+  let overlayElement = null;
   if (img.isPending && !img.data) {
-    imageElement = <Loader2 className="text-primary w-8 h-8 animate-spin" />;
+    overlayElement = (
+      <div className="bg-black absolute top-0 left-0 w-full h-full overflow-hidden">
+        <Skeleton className="w-full h-full rounded-none" />
+      </div>
+    );
   } else if (img.isError) {
-    imageElement = (
-      <div className="flex flex-col gap-2">
+    overlayElement = (
+      <div className="absolute top-0 left-0 bg-black w-full h-full flex flex-col items-center justify-center gap-2">
         <h2 className="text-red-500 text-lg font-medium text-center">
           Error loading image
         </h2>
-        {/* <h2 className="text-gray-500 dark:text-gray-500 font-medium text-center">
-          {resolveError(img.error)}
-        </h2> */}
+      </div>
+    );
+  }
+
+  let exportTypeTag = null;
+  if (type === "train") {
+    exportTypeTag = (
+      <div className="bg-yellow-500 rounded-tr-sm rounded-bl-sm px-2 oy-1 font-bold text-xs">
+        Train
+      </div>
+    );
+  } else if (type === "validation") {
+    exportTypeTag = (
+      <div className="bg-green-500 rounded-tr-sm rounded-bl-sm px-2 oy-1 font-bold text-xs">
+        Validation
+      </div>
+    );
+  } else if (type === "test") {
+    exportTypeTag = (
+      <div className="bg-blue-500 rounded-tr-sm rounded-bl-sm px-2 oy-1 font-bold text-xs">
+        Test
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-full bg-black">
+    <div className="relative w-full h-full border border-gray-300 dark:border-gray-700 rounded-sm overflow-hidden">
       <img
         ref={ref}
         loading="lazy"
-        className="w-full h-full flex flex-1 object-contain bg-black border border-gray-300 dark:border-gray-700 rounded-sm overflow-hidden"
+        className="w-full h-full flex flex-1 object-contain bg-black"
         src={img.data ? convertFileSrc(img.data) : ""}
         alt={image.path}
       />
-      {imageElement !== null && (
-        <div className="absolute top-0 left-0 bg-black w-full h-full flex flex-col items-center justify-center">
-          {imageElement}
-        </div>
-      )}
+      {overlayElement !== null && overlayElement}
+      <div className="absolute top-0 right-0">{exportTypeTag}</div>
     </div>
   );
 }
@@ -248,9 +266,11 @@ function DatasetGridItem({
 function DatasetGrid({
   images,
   cacheDir,
+  exportTypeMap,
 }: {
   images: RodioImage[];
   cacheDir: string;
+  exportTypeMap: Map<string, ExportDistributionType>;
 }) {
   const { isAboveMd } = useBreakpoint("md");
   const { isAboveLg } = useBreakpoint("lg");
@@ -301,6 +321,7 @@ function DatasetGrid({
                     return <div key={i} className="w-full h-full" />;
                   }
                   const imageFile = images[index];
+                  const exportType = exportTypeMap.get(imageFile.path);
                   return (
                     <div
                       key={i}
@@ -310,7 +331,11 @@ function DatasetGrid({
                         "h-52": isAboveLg,
                       })}
                     >
-                      <DatasetGridItem image={imageFile} cacheDir={cacheDir} />
+                      <DatasetGridItem
+                        image={imageFile}
+                        cacheDir={cacheDir}
+                        type={exportType}
+                      />
                     </div>
                   );
                 })}
@@ -321,6 +346,42 @@ function DatasetGrid({
       </div>
     </div>
   );
+}
+
+function getNumberOfImagesDistribution(
+  distribution: ExportDistribution,
+  _numberOfImages: number
+): ExportDistribution {
+  const entries = Object.entries(distribution).map(([key, value]) => {
+    return {
+      key: key as keyof typeof distribution,
+      value: Math.floor(value * _numberOfImages),
+      weight: value,
+    };
+  });
+  // The remainder will always be less than or equal to the number of classes - 1 (2).
+  // [0, 2]
+  const remainder =
+    _numberOfImages - entries.reduce((acc, entry) => acc + entry.value, 0);
+  const hiToLoEntries = entries.sort((a, b) => b.weight - a.weight);
+  for (let r = 0; r < remainder; r++) {
+    // Safety: Use modulo to prevent out of bounds in case logic fails.
+    hiToLoEntries[r % hiToLoEntries.length].value += 1;
+  }
+
+  const numberOfImages = entries.reduce(
+    (acc, entry) => {
+      acc[entry.key] = entry.value;
+      return acc;
+    },
+    {
+      train: 0,
+      validation: 0,
+      test: 0,
+    }
+  );
+
+  return numberOfImages;
 }
 
 function ExportPreview({
@@ -341,39 +402,40 @@ function ExportPreview({
       project,
     };
   });
-  const numberOfImages = useMemo(() => {
-    const entries = Object.entries(distribution).map(([key, value]) => {
-      return {
-        key: key as keyof typeof distribution,
-        value: Math.floor(value * currentProjectStore.images.length),
-        weight: value,
-      };
-    });
-    // The remainder will always be less than or equal to the number of classes - 1 (2).
-    // [0, 2]
-    const remainder =
-      currentProjectStore.images.length -
-      entries.reduce((acc, entry) => acc + entry.value, 0);
-    const hiToLoEntries = entries.sort((a, b) => b.weight - a.weight);
-    for (let r = 0; r < remainder; r++) {
-      // Safety: Use modulo to prevent out of bounds in case logic fails.
-      hiToLoEntries[r % hiToLoEntries.length].value += 1;
-    }
-
-    const numberOfImages = entries.reduce(
-      (acc, entry) => {
-        acc[entry.key] = entry.value;
-        return acc;
-      },
-      {
-        train: 0,
-        validation: 0,
-        test: 0,
-      }
+  const { exportTypeMap, numberOfImages } = useMemo(() => {
+    const numberOfImages = getNumberOfImagesDistribution(
+      distribution,
+      currentProjectStore.images.length
     );
+    const images = currentProjectStore.images;
+    const numberOfImagesIterator = Object.entries(numberOfImages) as [
+      ExportDistributionType,
+      number,
+    ][];
+    let iteratorIndex = numberOfImagesIterator.findIndex(
+      ([, count]) => count > 0
+    );
+    const exportTypeMap: Map<string, ExportDistributionType> = new Map();
 
-    return numberOfImages;
-  }, [distribution, currentProjectStore.images.length]);
+    for (let i = 0; i < images.length; i++) {
+      const image = images[i];
+      const _item = numberOfImagesIterator[iteratorIndex];
+      if (!_item) {
+        break;
+      }
+
+      const [type, count] = _item;
+      if (count === 0) {
+        iteratorIndex += 1;
+      }
+      exportTypeMap.set(image.path, type);
+      numberOfImagesIterator[iteratorIndex][1] -= 1;
+    }
+    return {
+      exportTypeMap,
+      numberOfImages,
+    };
+  }, [distribution, currentProjectStore.images]);
 
   return (
     <>
@@ -425,6 +487,7 @@ function ExportPreview({
           cacheDir={currentProjectStore.project.getProjectFileFullPath(
             currentProjectStore.project.cache
           )}
+          exportTypeMap={exportTypeMap}
         />
       )}
 
