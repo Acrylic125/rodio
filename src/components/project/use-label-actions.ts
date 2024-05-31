@@ -6,6 +6,7 @@ import { LabelId } from "@/lib/rodio-project";
 import { nanoid } from "nanoid";
 import { useSaveLabels } from "./use-save-labels";
 import { useCurrent } from "./use-current";
+import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 
 export function useLabelActions({
   imageContainerSize,
@@ -87,18 +88,24 @@ export function useLabelActions({
         y: Math.max(newLabel.pos1.y, newLabel.pos2.y),
       };
 
-      const prev = currentProjectFileStore.labels;
-      if (currentProjectStore.selectedClass !== null) {
-        const newLabels = new Map(prev);
-        newLabels.set(id, {
-          id,
-          class: currentProjectStore.selectedClass,
-          start,
-          end,
-        });
-        currentProjectFileStore.setLabels(newLabels);
-        saveLabels(Array.from(newLabels.values()), () => {
-          currentProjectFileStore.setLabels(prev);
+      const selectedClass = currentProjectStore.selectedClass;
+      if (selectedClass !== null) {
+        const projectPath = currentProjectFileStore.projectPath;
+        currentProjectFileStore.setLabels((prev) => {
+          const newLabels = new Map(prev);
+          newLabels.set(id, {
+            id,
+            class: selectedClass,
+            start,
+            end,
+          });
+          saveLabels(Array.from(newLabels.values()));
+          if (
+            projectPath !== useCurrentProjectFileStore.getState().projectPath
+          ) {
+            return prev;
+          }
+          return newLabels;
         });
       }
 
@@ -106,8 +113,8 @@ export function useLabelActions({
       setNewLabel(null);
     }
   }, [
-    currentProjectFileStore.labels,
     currentProjectStore.selectedClass,
+    currentProjectFileStore.projectPath,
     newLabel,
     setFocusedLabel,
     setNewLabel,
@@ -119,36 +126,46 @@ export function useLabelActions({
     const _focuusedLabel = focuusedLabel;
     if (_focuusedLabel === null) return;
     setFocusedLabel(null);
-    const prev = currentProjectFileStore.labels;
-    if (prev.get(_focuusedLabel) !== undefined) {
-      const newLabels = new Map(prev);
-      newLabels.delete(_focuusedLabel);
-      currentProjectFileStore.setLabels(newLabels);
-      saveLabels(Array.from(newLabels.values()), () => {
-        currentProjectFileStore.setLabels(prev);
-      });
-    }
+    currentProjectFileStore.setLabels((prev) => {
+      const projectPath = currentProjectFileStore.projectPath;
+      if (prev.get(_focuusedLabel) !== undefined) {
+        const newLabels = new Map(prev);
+        newLabels.delete(_focuusedLabel);
+        saveLabels(Array.from(newLabels.values()));
+        if (projectPath !== useCurrentProjectFileStore.getState().projectPath) {
+          return prev;
+        }
+        return newLabels;
+      }
+      return prev;
+    });
   }, ["Backspace"]);
   const onResize = useCallback(
     (id: LabelId, start: Pos, end: Pos) => {
       const prev = currentProjectFileStore.labels;
       const label = prev.get(id);
       if (label) {
-        const newLabels = new Map(prev);
-        newLabels.set(id, {
-          id: label.id,
-          class: label.class,
-          start,
-          end,
-        });
-        currentProjectFileStore.setLabels(newLabels);
-        saveLabels(Array.from(newLabels.values()), () => {
-          currentProjectFileStore.setLabels(prev);
+        const projectPath = currentProjectFileStore.projectPath;
+        currentProjectFileStore.setLabels((prev) => {
+          const newLabels = new Map(prev);
+          newLabels.set(id, {
+            id: label.id,
+            class: label.class,
+            start,
+            end,
+          });
+          saveLabels(Array.from(newLabels.values()));
+          if (
+            projectPath !== useCurrentProjectFileStore.getState().projectPath
+          ) {
+            return prev;
+          }
+          return newLabels;
         });
       }
     },
     [
-      currentProjectFileStore.labels,
+      currentProjectFileStore.projectPath,
       currentProjectFileStore.setLabels,
       saveLabels,
     ]

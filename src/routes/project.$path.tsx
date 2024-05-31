@@ -8,7 +8,7 @@ import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { ImageList } from "@/components/project/image-list";
 import { LabelList } from "@/components/project/label-list";
 import { ClassList } from "@/components/project/class-list";
-import { ExportModal } from "@/components/project/export-modal";
+import { ExportModal } from "@/components/project/export/export-modal";
 
 export const Route = createFileRoute("/project/$path")({
   component: Project,
