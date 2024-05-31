@@ -1,6 +1,7 @@
 import { Label, LabelId, RodioProject } from "@/lib/rodio-project";
 import { resolveError } from "@/lib/utils";
 import { StoreApi, UseBoundStore, create } from "zustand";
+import { useSaveStore } from "./save-store";
 
 export const useCurrentProjectFileStore: UseBoundStore<
   StoreApi<{
@@ -49,7 +50,13 @@ export const useCurrentProjectFileStore: UseBoundStore<
       },
     });
     try {
-      const labels = await project.db.getLabels(path);
+      const cachedLabels = useSaveStore
+        .getState()
+        .pendingSavess.get(path)?.state;
+      const labels =
+        cachedLabels !== undefined
+          ? cachedLabels
+          : await project.db.getLabels(path);
       set({
         projectPath: path,
         loadStatus: { state: "success" },
