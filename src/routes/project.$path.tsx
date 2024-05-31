@@ -9,6 +9,8 @@ import { ImageList } from "@/components/project/image-list";
 import { LabelList } from "@/components/project/label-list";
 import { ClassList } from "@/components/project/class-list";
 import { ExportModal } from "@/components/project/export/export-modal";
+import { TauriEvent } from "@tauri-apps/api/event";
+import { appWindow } from "@tauri-apps/api/window";
 
 export const Route = createFileRoute("/project/$path")({
   component: Project,
@@ -33,6 +35,29 @@ function Project() {
       currentProjectStore.load(path);
     }
   }, [currentProjectStore.project, currentProjectStore.load, path]);
+  useEffect(() => {
+    // const appWindow = window.__TAURI__.window;
+
+    const unsub = appWindow
+      // .getCurrent()
+      .listen(TauriEvent.WINDOW_CLOSE_REQUESTED, async () => {
+        // const confirmed = await dialog.confirm(
+        //   "Are you sure you want to exit?"
+        // );
+        // if (confirmed) {
+        //   appWindow.close();
+        // } else {
+        //   // Prevent closing if user cancels (currently not possible directly)
+        //   //  We can use a timeout to close after a short delay to simulate prevention
+        //   // setTimeout(function () {
+        //   //   appWindow.close();
+        //   // }, 4000);
+        // }
+      });
+    return () => {
+      unsub.then((u) => u());
+    };
+  }, []);
 
   let imagePreview = null;
   if (currentProjectStore.loadStatus.state === "success") {
