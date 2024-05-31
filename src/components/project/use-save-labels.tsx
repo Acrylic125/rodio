@@ -5,7 +5,6 @@ import { useToast } from "../ui/use-toast";
 import { ToastAction } from "../ui/toast";
 import { useSaveStore } from "@/stores/save-store";
 import { resolveError } from "@/lib/utils";
-import { nanoid } from "nanoid";
 
 export function useSaveLabels(
   projectPath: string,
@@ -22,8 +21,6 @@ export function useSaveLabels(
     if (project === null) return;
     try {
       // Use the most recent state
-      const tempId = nanoid(12);
-      console.log(`Saving ${tempId}`);
       const beforeCurrentState = useSaveStore.getState();
       const beforeSave = beforeCurrentState.pendingSavess.get(projectPath);
       if (beforeSave === undefined) {
@@ -42,11 +39,9 @@ export function useSaveLabels(
       // We only want to invalidate the pending saves if the state saved
       // is the most recent state.
       if (afterSave !== beforeSave) {
-        console.log(`Ignored delete ${tempId}`);
         return;
       }
 
-      console.log(`Delete ${tempId}`);
       const newSaves = new Map(afterCurrentState.pendingSavess);
       newSaves.delete(projectPath);
       afterCurrentState.setPendingSavess(newSaves);
@@ -86,7 +81,6 @@ export function useSaveLabels(
         state: labels,
       });
       saveStore.setPendingSavess(newSaves);
-      console.log("Run");
 
       return pendingSave.processQueue.do(doSave);
     },
