@@ -31,14 +31,19 @@ export class Lock {
 
 export class ProcessQueue<T> {
   private lock = new Lock();
-  private nextId = 0;
+  private nextId = 1; // Task id starts from 1.
   private accId = 0;
 
+  public isLocked() {
+    return this.lock.isLocked();
+  }
+
   public async do(fn: () => Promise<T>) {
-    const taskId = this.accId++;
+    const taskId = ++this.accId; // Make sure to add and get NOT get and add!
 
     await this.lock.acquire();
     const shouldRun = this.nextId === taskId;
+
     try {
       if (shouldRun) {
         const result = await fn();
