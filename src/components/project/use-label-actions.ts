@@ -142,29 +142,28 @@ export function useLabelActions({
   }, ["Backspace"]);
   const onResize = useCallback(
     (id: LabelId, start: Pos, end: Pos) => {
-      const prev = currentProjectFileStore.labels;
-      const label = prev.get(id);
-      if (label) {
-        const projectPath = currentProjectFileStore.projectPath;
-        currentProjectFileStore.setLabels((prev) => {
-          const newLabels = new Map(prev);
-          newLabels.set(id, {
-            id: label.id,
-            class: label.class,
-            start,
-            end,
-          });
-          saveLabels(Array.from(newLabels.values()));
-          if (
-            projectPath !== useCurrentProjectFileStore.getState().projectPath
-          ) {
-            return prev;
-          }
-          return newLabels;
+      currentProjectFileStore.setLabels((prev) => {
+        const label = prev.get(id);
+        if (label === undefined) {
+          return prev;
+        }
+        const newLabels = new Map(prev);
+        newLabels.set(id, {
+          id: label.id,
+          class: label.class,
+          start,
+          end,
         });
-      }
+        saveLabels(Array.from(newLabels.values()));
+        const projectPath = currentProjectFileStore.projectPath;
+        if (projectPath !== useCurrentProjectFileStore.getState().projectPath) {
+          return prev;
+        }
+        return newLabels;
+      });
     },
     [
+      currentProjectFileStore.labels,
       currentProjectFileStore.projectPath,
       currentProjectFileStore.setLabels,
       saveLabels,

@@ -100,19 +100,12 @@ export function LabelBox({
             endPos,
           };
           onRequestCursorChange?.(anchor.cursor);
-          // const stage = e.target.getStage();
-          // if (!stage) return;
-          // const container = stage.container();
-          // container.style.cursor = anchor.cursor;
         }}
         onAnchorDragEnd={() => {
           initialResizePositions.current = undefined;
           setResizeRotation([1, 1]);
           onRequestCursorChange?.(null);
-          // const stage = e.target.getStage();
-          // if (!stage) return;
-          // const container = stage.container();
-          // container.style.cursor = "default";
+          onResize?.(id, startPos, endPos);
         }}
         onAnchorDragMove={(e, anchor) => {
           if (!initialResizePositions.current) return;
