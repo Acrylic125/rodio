@@ -206,7 +206,6 @@ export class RodioProjectDB implements RodioProjectFile {
   }
 
   public async setLabels(filePath: string, labels: Label[]) {
-    await new Promise<void>((resolve) => setTimeout(resolve, 5000));
     const db = await this.db();
 
     let sql = `
