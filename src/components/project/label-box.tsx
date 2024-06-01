@@ -152,8 +152,6 @@ export function LabelBox({
           y={y}
           width={width}
           height={height}
-          // fill="#ff00004f"
-          // stroke="#ff0000"
           fill={`${color}4f`}
           stroke={color}
           strokeWidth={4}
