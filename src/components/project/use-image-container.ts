@@ -50,6 +50,7 @@ export function useImageContainer() {
       if (!(target instanceof HTMLImageElement)) return;
       updateContainerSize(target);
     });
+
     resizeObserver.observe(imageRef.current);
     return () => {
       resizeObserver.disconnect();
