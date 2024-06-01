@@ -153,7 +153,16 @@ function DatasetGridItem({
   }
 
   return (
-    <div className="relative w-full h-full border border-gray-300 dark:border-gray-700 rounded-sm overflow-hidden">
+    <div
+      className={cn(
+        "relative w-full h-full border rounded-sm overflow-hidden",
+        {
+          "border-yellow-500": type === "train",
+          "border-green-500": type === "validation",
+          "border-blue-500": type === "test",
+        }
+      )}
+    >
       <img
         ref={ref}
         loading="lazy"
@@ -166,7 +175,7 @@ function DatasetGridItem({
         }}
       />
       {overlayElement !== null && overlayElement}
-      <div className="absolute top-0 right-0">{exportTypeTag}</div>
+      {/* <div className="absolute top-0 right-0">{exportTypeTag}</div> */}
     </div>
   );
 }
