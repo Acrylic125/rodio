@@ -185,6 +185,14 @@ export class RodioProjectDB implements RodioProjectFile {
     },
   ];
 
+  public async getAllLabelledFiles() {
+    const db = await this.db();
+    const files = await db.select<{ path: string }[]>(
+      `SELECT DISTINCT path FROM labels`
+    );
+    return files;
+  }
+
   public async deleteLabel(labelId: LabelId) {
     const db = await this.db();
     return db.execute(`DELETE FROM labels WHERE id = $1;`, [labelId]);
