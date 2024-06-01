@@ -29,11 +29,14 @@ function DatasetGridItem({
     updateContainerSize,
   } = useImageContainer();
   const img = useOptimisedImage(ref, image.path, cacheDir, "dataset-grid");
-  const currentProjectStore = useCurrentProjectStore(({ project }) => {
-    return {
-      project,
-    };
-  });
+  const currentProjectStore = useCurrentProjectStore(
+    ({ project, classesMap }) => {
+      return {
+        project,
+        classesMap,
+      };
+    }
+  );
   const queryClient = useQueryClient();
   const labelsQuery = useQuery({
     queryKey: ["labels", currentProjectStore.project?.projectPath, image.path],
@@ -98,6 +101,9 @@ function DatasetGridItem({
         >
           <Layer>
             {labels.map((label) => {
+              const color =
+                currentProjectStore.classesMap.get(label.class)?.color ??
+                "#000000";
               const x = label.start.x * imageContainerSize.width;
               const y = label.start.y * imageContainerSize.height;
               const width =
@@ -112,7 +118,9 @@ function DatasetGridItem({
                     y={y}
                     width={width}
                     height={height}
-                    fill="#ff00ff"
+                    fill={`${color}4f`}
+                    stroke={`${color}`}
+                    strokeWidth={1}
                   />
                 </Group>
               );
