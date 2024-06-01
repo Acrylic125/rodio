@@ -36,7 +36,7 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
             onOptionsChange={setExportOptions}
           />
         )}
-        {page === 1 && <ExportPreview prevPage={prevPage} />}
+        {page === 1 && <ExportPreview prevPage={prevPage} options={options} />}
       </DialogContent>
     </Dialog>
   );

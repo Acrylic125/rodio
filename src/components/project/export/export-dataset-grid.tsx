@@ -3,7 +3,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useBreakpoint } from "@/lib/use-breakpoint";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
 import { cn, resolveError } from "@/lib/utils";
-import { RodioImage } from "@/lib/rodio-project";
 import { useOptimisedImage } from "../../image/use-optimised-image";
 import { ExportDistributionType } from "./export-types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,11 +14,11 @@ import { Group, Layer, Rect, Stage } from "react-konva";
 import { Loader2 } from "lucide-react";
 
 function DatasetGridItem({
-  image,
+  imagePath,
   cacheDir,
   type,
 }: {
-  image: RodioImage;
+  imagePath: string;
   cacheDir: string;
   type?: ExportDistributionType;
 }) {
@@ -28,7 +27,7 @@ function DatasetGridItem({
     imageContainerSize,
     updateContainerSize,
   } = useImageContainer();
-  const img = useOptimisedImage(ref, image.path, cacheDir, "dataset-grid");
+  const img = useOptimisedImage(ref, imagePath, cacheDir, "dataset-grid");
   const currentProjectStore = useCurrentProjectStore(
     ({ project, classesMap }) => {
       return {
@@ -39,13 +38,13 @@ function DatasetGridItem({
   );
   const queryClient = useQueryClient();
   const labelsQuery = useQuery({
-    queryKey: ["labels", currentProjectStore.project?.projectPath, image.path],
+    queryKey: ["labels", currentProjectStore.project?.projectPath, imagePath],
     enabled: currentProjectStore.project !== null,
     queryFn: async () => {
       if (currentProjectStore.project === null) {
         return [];
       }
-      return currentProjectStore.project.db.getLabels(image.path);
+      return currentProjectStore.project.db.getLabels(imagePath);
     },
   });
 
@@ -55,19 +54,19 @@ function DatasetGridItem({
       ({ payload }) => {
         if (
           payload.type === "success" &&
-          payload.filePath === image.path &&
+          payload.filePath === imagePath &&
           currentProjectStore.project !== null &&
           payload.projectPath === currentProjectStore.project.projectPath
         ) {
           queryClient.setQueryData(
-            ["labels", currentProjectStore.project.projectPath, image.path],
+            ["labels", currentProjectStore.project.projectPath, imagePath],
             payload.labels
           );
         }
       }
     );
     return unsubscribe;
-  }, [currentProjectStore.project?.projectPath, image.path, queryClient]);
+  }, [currentProjectStore.project?.projectPath, imagePath, queryClient]);
 
   let overlayElement = null;
   if (img.isError || labelsQuery.isError) {
@@ -168,7 +167,7 @@ function DatasetGridItem({
         loading="lazy"
         className="w-full h-full flex flex-1 object-contain bg-black"
         src={img.data ? convertFileSrc(img.data) : ""}
-        alt={image.path}
+        alt={imagePath}
         onLoad={(e) => {
           if (!(e.target instanceof HTMLImageElement)) return;
           updateContainerSize(e.target);
@@ -185,7 +184,7 @@ export function DatasetGrid({
   cacheDir,
   exportTypeMap,
 }: {
-  images: RodioImage[];
+  images: string[];
   cacheDir: string;
   exportTypeMap: Map<string, ExportDistributionType>;
 }) {
@@ -237,8 +236,8 @@ export function DatasetGrid({
                   if (index >= images.length) {
                     return <div key={i} className="w-full h-full" />;
                   }
-                  const imageFile = images[index];
-                  const exportType = exportTypeMap.get(imageFile.path);
+                  const imagePath = images[index];
+                  const exportType = exportTypeMap.get(imagePath);
                   return (
                     <div
                       key={i}
@@ -249,7 +248,7 @@ export function DatasetGrid({
                       })}
                     >
                       <DatasetGridItem
-                        image={imageFile}
+                        imagePath={imagePath}
                         cacheDir={cacheDir}
                         type={exportType}
                       />

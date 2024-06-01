@@ -5,6 +5,8 @@ import { ExportDistribution, ExportDistributionType } from "./export-types";
 import { DatasetGrid } from "./export-dataset-grid";
 import { ModalFooter } from "./export-modal-footer";
 import { ExportDistributionInputs } from "./export-distribution-inputs";
+import { useExportImages } from "./use-export-images";
+import { ExportOptions } from "./select-export-type";
 
 export function getNumberOfImagesDistribution(
   distribution: ExportDistribution,
@@ -45,55 +47,58 @@ export function getNumberOfImagesDistribution(
 export function ExportPreview({
   nextPage,
   prevPage,
+  options,
 }: {
   nextPage?: () => void;
   prevPage?: () => void;
+  options: ExportOptions;
 }) {
   const [distribution, setDistribution] = useState({
     train: 0.7,
     validation: 0.2,
     test: 0.1,
   });
-  const currentProjectStore = useCurrentProjectStore(({ images, project }) => {
+  const currentProjectStore = useCurrentProjectStore(({ project }) => {
     return {
-      images,
       project,
     };
   });
+  const exportImagesQuery = useExportImages(options);
+  const images = exportImagesQuery.data;
   const { exportTypeMap, numberOfImages } = useMemo(() => {
+    if (!images) {
+      return {
+        exportTypeMap: new Map<string, ExportDistributionType>(),
+        numberOfImages: {
+          train: 0,
+          validation: 0,
+          test: 0,
+        },
+      };
+    }
     const numberOfImages = getNumberOfImagesDistribution(
       distribution,
-      currentProjectStore.images.length
+      images.length
     );
-    const images = currentProjectStore.images;
     const numberOfImagesIterator = Object.entries(numberOfImages) as [
       ExportDistributionType,
       number,
     ][];
-    let iteratorIndex = numberOfImagesIterator.findIndex(
-      ([, count]) => count > 0
-    );
     const exportTypeMap: Map<string, ExportDistributionType> = new Map();
 
-    for (let i = 0; i < images.length; i++) {
-      const image = images[i];
-      const _item = numberOfImagesIterator[iteratorIndex];
-      if (!_item) {
-        break;
+    let imagePtr = 0;
+    for (const [type, count] of numberOfImagesIterator) {
+      for (let j = 0; j < count; j++) {
+        exportTypeMap.set(images[imagePtr], type);
+        imagePtr += 1;
       }
-
-      const [type, count] = _item;
-      if (count === 0) {
-        iteratorIndex += 1;
-      }
-      exportTypeMap.set(image.path, type);
-      numberOfImagesIterator[iteratorIndex][1] -= 1;
     }
+
     return {
       exportTypeMap,
       numberOfImages,
     };
-  }, [distribution, currentProjectStore.images]);
+  }, [distribution, images]);
 
   return (
     <>
@@ -104,7 +109,7 @@ export function ExportPreview({
         <div className="flex flex-col gap-2">
           <span>
             Dataset Distribution {"("}
-            {currentProjectStore.images.length} items{")"}
+            {images?.length ?? 0} items{")"}
           </span>
           <ExportDistributionInputs
             numberOfImages={numberOfImages}
@@ -141,7 +146,7 @@ export function ExportPreview({
       </div>
       {currentProjectStore.project && (
         <DatasetGrid
-          images={currentProjectStore.images}
+          images={images ?? []}
           cacheDir={currentProjectStore.project.getProjectFileFullPath(
             currentProjectStore.project.cache
           )}
