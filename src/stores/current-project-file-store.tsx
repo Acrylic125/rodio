@@ -5,7 +5,7 @@ import { useSaveStore } from "./save-store";
 
 export const useCurrentProjectFileStore: UseBoundStore<
   StoreApi<{
-    projectPath: string;
+    filePath: string;
     loadStatus:
       | {
           state: "idle" | "loading" | "success";
@@ -23,7 +23,7 @@ export const useCurrentProjectFileStore: UseBoundStore<
     load: (project: RodioProject, path: string) => Promise<void>;
   }>
 > = create((set) => ({
-  projectPath: "",
+  filePath: "",
   loadStatus: {
     state: "idle",
   },
@@ -58,7 +58,7 @@ export const useCurrentProjectFileStore: UseBoundStore<
           ? cachedLabels
           : await project.db.getLabels(path);
       set({
-        projectPath: path,
+        filePath: path,
         loadStatus: { state: "success" },
         labels: new Map(labels.map((l) => [l.id, l])),
       });

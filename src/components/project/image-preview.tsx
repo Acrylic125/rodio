@@ -22,7 +22,7 @@ export default function ImagePreview({
   const { imageRef, imageContainerSize, updateContainerSize } =
     useImageContainer();
   const currentProjectFileStore = useCurrentProjectFileStore(
-    ({ projectPath, labels, setLabels }) => {
+    ({ filePath: projectPath, labels, setLabels }) => {
       return {
         projectPath,
         labels,

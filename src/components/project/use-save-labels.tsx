@@ -5,11 +5,9 @@ import { useToast } from "../ui/use-toast";
 import { ToastAction } from "../ui/toast";
 import { useSaveStore } from "@/stores/save-store";
 import { resolveError } from "@/lib/utils";
+import * as frontendEvents from "@/lib/frontend-events";
 
-export function useSaveLabels(
-  projectPath: string,
-  project: RodioProject | null
-) {
+export function useSaveLabels(filePath: string, project: RodioProject | null) {
   const { toast } = useToast();
   const saveStore = useSaveStore(({ setPendingSavess, pendingSavess }) => {
     return {
@@ -22,15 +20,19 @@ export function useSaveLabels(
     try {
       // Use the most recent state
       const beforeCurrentState = useSaveStore.getState();
-      const beforeSave = beforeCurrentState.pendingSavess.get(projectPath);
+      const beforeSave = beforeCurrentState.pendingSavess.get(filePath);
       if (beforeSave === undefined) {
         throw new Error("No state found to save.");
       }
-      await project.db.setLabels(projectPath, beforeSave.state);
+      await project.db.setLabels(filePath, beforeSave.state);
+      frontendEvents.dispatch("saveLabels", {
+        type: "success",
+        filePath,
+      });
 
       // Retrieve freshes state
       const afterCurrentState = useSaveStore.getState();
-      const afterSave = afterCurrentState.pendingSavess.get(projectPath);
+      const afterSave = afterCurrentState.pendingSavess.get(filePath);
       if (afterSave === undefined) {
         console.warn("No state found after saving.");
         return;
@@ -43,12 +45,12 @@ export function useSaveLabels(
       }
 
       const newSaves = new Map(afterCurrentState.pendingSavess);
-      newSaves.delete(projectPath);
+      newSaves.delete(filePath);
       afterCurrentState.setPendingSavess(newSaves);
     } catch (err) {
       console.error(err);
       toast({
-        title: `Failed to save labels ${projectPath}`,
+        title: `Failed to save labels ${filePath}`,
         description: resolveError(err),
         action: (
           <div className="flex flex-row gap-2">
@@ -63,11 +65,11 @@ export function useSaveLabels(
       });
       console.error(err);
     }
-  }, [projectPath, project, toast, useSaveStore]);
+  }, [filePath, project, toast, useSaveStore]);
   const saveLabels = useCallback(
     async (labels: Label[]) => {
       const prev = saveStore.pendingSavess;
-      let pendingSave = prev.get(projectPath);
+      let pendingSave = prev.get(filePath);
       if (pendingSave === undefined) {
         const processQueue = new ProcessQueue<void>();
         pendingSave = {
@@ -76,7 +78,7 @@ export function useSaveLabels(
         };
       }
       const newSaves = new Map(prev);
-      newSaves.set(projectPath, {
+      newSaves.set(filePath, {
         ...pendingSave,
         state: labels,
       });
@@ -84,7 +86,7 @@ export function useSaveLabels(
 
       return pendingSave.processQueue.do(doSave);
     },
-    [projectPath, saveStore.pendingSavess, saveStore.setPendingSavess]
+    [filePath, saveStore.pendingSavess, saveStore.setPendingSavess]
   );
   return {
     saveLabels,

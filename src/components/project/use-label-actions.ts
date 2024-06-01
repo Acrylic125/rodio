@@ -100,9 +100,7 @@ export function useLabelActions({
             end,
           });
           saveLabels(Array.from(newLabels.values()));
-          if (
-            projectPath !== useCurrentProjectFileStore.getState().projectPath
-          ) {
+          if (projectPath !== useCurrentProjectFileStore.getState().filePath) {
             return prev;
           }
           return newLabels;
@@ -132,7 +130,7 @@ export function useLabelActions({
         const newLabels = new Map(prev);
         newLabels.delete(_focuusedLabel);
         saveLabels(Array.from(newLabels.values()));
-        if (projectPath !== useCurrentProjectFileStore.getState().projectPath) {
+        if (projectPath !== useCurrentProjectFileStore.getState().filePath) {
           return prev;
         }
         return newLabels;
@@ -156,7 +154,7 @@ export function useLabelActions({
         });
         saveLabels(Array.from(newLabels.values()));
         const projectPath = currentProjectFileStore.projectPath;
-        if (projectPath !== useCurrentProjectFileStore.getState().projectPath) {
+        if (projectPath !== useCurrentProjectFileStore.getState().filePath) {
           return prev;
         }
         return newLabels;

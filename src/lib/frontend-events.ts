@@ -1,6 +1,7 @@
 export type EventTypes = {
-  save: {
+  saveLabels: {
     type: "success" | "error";
+    filePath: string;
   };
 };
 type Listener<T extends keyof EventTypes> = (event: {
@@ -8,14 +9,14 @@ type Listener<T extends keyof EventTypes> = (event: {
   payload: EventTypes[T];
 }) => void;
 
-const saveListeners = new Set<Listener<"save">>();
+const saveLabelsListeners = new Set<Listener<"saveLabels">>();
 
 function getListeners<T extends keyof EventTypes>(
   type: T
 ): Set<Listener<T>> | undefined {
   switch (type) {
-    case "save":
-      return saveListeners;
+    case "saveLabels":
+      return saveLabelsListeners;
   }
 }
 
@@ -52,7 +53,12 @@ export function dispatch<T extends keyof EventTypes>(
   if (!listeners) {
     throw new Error(`Event type ${type} does not exist`);
   }
+
   for (const listener of listeners) {
-    listener({ type, payload });
+    try {
+      listener({ type, payload });
+    } catch (err) {
+      console.error(err);
+    }
   }
 }

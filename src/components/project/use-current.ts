@@ -3,7 +3,7 @@ import { useCurrentProjectStore } from "@/stores/current-project-store";
 
 export function useCurrent() {
   const currentProjectFileStore = useCurrentProjectFileStore(
-    ({ projectPath, labels, setLabels }) => {
+    ({ filePath: projectPath, labels, setLabels }) => {
       return {
         projectPath,
         labels,
