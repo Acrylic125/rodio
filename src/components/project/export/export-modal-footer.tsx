@@ -1,7 +1,7 @@
 import { Button } from "../../ui/button";
 import { DialogFooter } from "../../ui/dialog";
 
-export function ModalFooter({
+export function ExportModalFooter({
   nextPage,
   prevPage,
 }: {

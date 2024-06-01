@@ -3,7 +3,7 @@ import { DialogHeader, DialogTitle } from "../../ui/dialog";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { ExportDistribution, ExportDistributionType } from "./export-types";
 import { DatasetGrid } from "./export-dataset-grid";
-import { ModalFooter } from "./export-modal-footer";
+import { ExportModalFooter } from "./export-modal-footer";
 import { ExportDistributionInputs } from "./export-distribution-inputs";
 import { useExportImages } from "./use-export-images";
 import { ExportOptions } from "./select-export-type";
@@ -154,7 +154,7 @@ export function ExportPreview({
         />
       )}
 
-      <ModalFooter nextPage={nextPage} prevPage={prevPage} />
+      <ExportModalFooter nextPage={nextPage} prevPage={prevPage} />
     </>
   );
 }

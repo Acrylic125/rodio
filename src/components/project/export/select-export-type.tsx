@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
-import { ModalFooter } from "./export-modal-footer";
+import { ExportModalFooter } from "./export-modal-footer";
 
 export const ExportTypes = ["yolov8"] as const;
 export type ExportType = (typeof ExportTypes)[number];
@@ -82,7 +82,7 @@ export function SelectExportType({
           </label>
         </div>
       </form>
-      <ModalFooter nextPage={nextPage} prevPage={prevPage} />
+      <ExportModalFooter nextPage={nextPage} prevPage={prevPage} />
     </>
   );
 }
