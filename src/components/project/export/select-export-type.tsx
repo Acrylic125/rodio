@@ -1,5 +1,10 @@
 import { Checkbox } from "@/components/ui/checkbox";
-import { DialogDescription, DialogHeader, DialogTitle } from "../../ui/dialog";
+import {
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../ui/dialog";
 import {
   Select,
   SelectContent,
@@ -9,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
-import { ExportModalFooter } from "./export-modal-footer";
+import { Button } from "@/components/ui/button";
 
 export const ExportTypes = ["yolov8"] as const;
 export type ExportType = (typeof ExportTypes)[number];
@@ -19,7 +24,7 @@ export type ExportOptions = {
   onlyExportLabelled: boolean;
 };
 
-export function SelectExportType({
+export function ExportModalSelectExportType({
   nextPage,
   prevPage,
   options,
@@ -82,7 +87,19 @@ export function SelectExportType({
           </label>
         </div>
       </form>
-      <ExportModalFooter nextPage={nextPage} prevPage={prevPage} />
+      <DialogFooter>
+        <Button
+          variant="secondary"
+          disabled={!prevPage}
+          onMouseDown={prevPage}
+          type="button"
+        >
+          Back
+        </Button>
+        <Button disabled={!nextPage} onMouseDown={nextPage} type="button">
+          Next
+        </Button>
+      </DialogFooter>
     </>
   );
 }

@@ -5,8 +5,9 @@ export function ExportModalFooter({
   nextPage,
   prevPage,
 }: {
-  nextPage?: () => void;
   prevPage?: () => void;
+} & {
+  nextPage?: () => void;
 }) {
   return (
     <DialogFooter>

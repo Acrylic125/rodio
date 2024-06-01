@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { DialogHeader, DialogTitle } from "../../ui/dialog";
+import { DialogFooter, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { ExportDistribution, ExportDistributionType } from "./export-types";
 import { DatasetGrid } from "./export-dataset-grid";
-import { ExportModalFooter } from "./export-modal-footer";
 import { ExportDistributionInputs } from "./export-distribution-inputs";
 import { useExportImages } from "./use-export-images";
 import { ExportOptions } from "./select-export-type";
+import { Button } from "@/components/ui/button";
 
 export function getNumberOfImagesDistribution(
   distribution: ExportDistribution,
@@ -45,12 +45,12 @@ export function getNumberOfImagesDistribution(
 }
 
 export function ExportPreview({
-  nextPage,
+  onRequestExport,
   prevPage,
   options,
 }: {
-  nextPage?: () => void;
-  prevPage?: () => void;
+  onRequestExport: (images: string[]) => void;
+  prevPage: () => void;
   options: ExportOptions;
 }) {
   const [distribution, setDistribution] = useState({
@@ -154,7 +154,20 @@ export function ExportPreview({
         />
       )}
 
-      <ExportModalFooter nextPage={nextPage} prevPage={prevPage} />
+      <DialogFooter>
+        <Button variant="secondary" onMouseDown={prevPage} type="button">
+          Back
+        </Button>
+        <Button
+          disabled={exportImagesQuery.isLoading || exportImagesQuery.isError}
+          onMouseDown={() => {
+            onRequestExport(images ?? []);
+          }}
+          type="button"
+        >
+          Start Export
+        </Button>
+      </DialogFooter>
     </>
   );
 }
