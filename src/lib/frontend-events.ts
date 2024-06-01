@@ -1,33 +1,29 @@
+import { Label } from "./rodio-project";
+
 export type EventTypes = {
-  saveLabels: {
-    type: "success" | "error";
-    filePath: string;
-  };
+  saveLabels:
+    | {
+        type: "success";
+        filePath: string;
+        labels: Label[];
+      }
+    | {
+        type: "error";
+        filePath: string;
+        error: unknown;
+      };
 };
-type Listener<T extends keyof EventTypes> = (event: {
-  type: T;
-  payload: EventTypes[T];
-}) => void;
+export type EventListener<T> = (event: { payload: T }) => void;
 
-const saveLabelsListeners = new Set<Listener<"saveLabels">>();
+export type EventManager<T> = {
+  listeners: Set<EventListener<T>>;
+};
 
-function getListeners<T extends keyof EventTypes>(
-  type: T
-): Set<Listener<T>> | undefined {
-  switch (type) {
-    case "saveLabels":
-      return saveLabelsListeners;
-  }
-}
-
-export function subscribe<T extends keyof EventTypes>(
-  type: T,
-  listener: Listener<T>
+export function subscribe<T>(
+  manager: EventManager<T>,
+  listener: EventListener<T>
 ) {
-  const listeners = getListeners(type);
-  if (!listeners) {
-    throw new Error(`Event type ${type} does not exist`);
-  }
+  const { listeners } = manager;
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -35,28 +31,18 @@ export function subscribe<T extends keyof EventTypes>(
 }
 
 export function unsubscribe<T extends keyof EventTypes>(
-  type: T,
-  listener: Listener<T>
+  manager: EventManager<T>,
+  listener: EventListener<T>
 ) {
-  const listeners = getListeners(type);
-  if (!listeners) {
-    throw new Error(`Event type ${type} does not exist`);
-  }
+  const { listeners } = manager;
   listeners.delete(listener);
 }
 
-export function dispatch<T extends keyof EventTypes>(
-  type: T,
-  payload: EventTypes[T]
-) {
-  const listeners = getListeners(type);
-  if (!listeners) {
-    throw new Error(`Event type ${type} does not exist`);
-  }
-
+export function dispatch<T>(manager: EventManager<T>, payload: T) {
+  const { listeners } = manager;
   for (const listener of listeners) {
     try {
-      listener({ type, payload });
+      listener({ payload });
     } catch (err) {
       console.error(err);
     }

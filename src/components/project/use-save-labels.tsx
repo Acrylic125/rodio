@@ -7,6 +7,24 @@ import { useSaveStore } from "@/stores/save-store";
 import { resolveError } from "@/lib/utils";
 import * as frontendEvents from "@/lib/frontend-events";
 
+export type SaveLabelsEventPayload =
+  | {
+      type: "success";
+      filePath: string;
+      projectPath: string;
+      labels: Label[];
+    }
+  | {
+      type: "error";
+      filePath: string;
+      projectPath: string;
+      error: unknown;
+    };
+export const SaveEventManager: frontendEvents.EventManager<SaveLabelsEventPayload> =
+  {
+    listeners: new Set(),
+  };
+
 export function useSaveLabels(filePath: string, project: RodioProject | null) {
   const { toast } = useToast();
   const saveStore = useSaveStore(({ setPendingSavess, pendingSavess }) => {
@@ -25,9 +43,11 @@ export function useSaveLabels(filePath: string, project: RodioProject | null) {
         throw new Error("No state found to save.");
       }
       await project.db.setLabels(filePath, beforeSave.state);
-      frontendEvents.dispatch("saveLabels", {
+      frontendEvents.dispatch(SaveEventManager, {
         type: "success",
         filePath,
+        projectPath: project.projectPath,
+        labels: beforeSave.state,
       });
 
       // Retrieve freshes state
@@ -49,6 +69,12 @@ export function useSaveLabels(filePath: string, project: RodioProject | null) {
       afterCurrentState.setPendingSavess(newSaves);
     } catch (err) {
       console.error(err);
+      frontendEvents.dispatch(SaveEventManager, {
+        type: "error",
+        filePath,
+        projectPath: project.projectPath,
+        error: err,
+      });
       toast({
         title: `Failed to save labels ${filePath}`,
         description: resolveError(err),
