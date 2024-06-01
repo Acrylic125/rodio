@@ -77,12 +77,6 @@ export function SelectExportType({
                   onlyExportLabelled: !!checked.valueOf(),
                 });
               }}
-              // onChange={(e) => {
-              //   onOptionsChange({
-              //     ...options,
-              //     onlyExportLabelled: ,
-              //   });
-              // }}
             />
             <span>Only export labelled</span>
           </label>
