@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
 import { resolveError } from "@/lib/utils";
+import { ExportDistributionType } from "./export-types";
 
 const ExportConcurrentLimit = 5;
 
@@ -10,9 +11,14 @@ type ImageExportError = {
   message: string;
 };
 
+export type ExportImage = {
+  path: string;
+  type: ExportDistributionType;
+};
+
 type ExportSession = {
   id: number;
-  images: string[];
+  images: ExportImage[];
   errors: ImageExportError[];
   haltError: unknown | null;
   erroredImages: Set<string>;
@@ -26,7 +32,7 @@ type ExportStore = {
   idAcc: number;
   currentSession: ExportSession | null;
   isRunning: () => boolean;
-  save: (images: string[], session?: ExportSession) => Promise<void>;
+  save: (images: ExportImage[], session?: ExportSession) => Promise<void>;
   retry: () => void;
   cancel: () => void;
   continue: () => void;
@@ -39,7 +45,7 @@ const useExportStore = create<ExportStore>((set, get) => ({
     const { currentSession } = get();
     return currentSession !== null;
   },
-  save: async (images: string[], _session?: ExportSession) => {
+  save: async (images: ExportImage[], _session?: ExportSession) => {
     // We will cancel the previous session if it exists by overriding it with a new session.
     let initialSession: ExportSession;
     if (_session !== undefined) {
