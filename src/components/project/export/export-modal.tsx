@@ -6,7 +6,7 @@ import {
   ExportModalSelectExportType,
 } from "./select-export-type";
 import { ExportPreview } from "./export-preview";
-import { ExportInPorgress } from "./export-in-progress";
+import { ExportProgress } from "./export-progress";
 import useExportStore from "./export-store";
 
 const ExportInProgressPageId = 2;
@@ -64,7 +64,7 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
     );
   } else if (page === ExportInProgressPageId) {
     content = (
-      <ExportInPorgress
+      <ExportProgress
         onRequestConfigureExport={() => {
           setPage(1);
         }}

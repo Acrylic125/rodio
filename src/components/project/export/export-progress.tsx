@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import useExportStore from "./export-store";
 
-export function ExportInPorgress({
+export function ExportProgress({
   onRequestConfigureExport,
   onRequestComplete,
 }: {
@@ -67,7 +67,7 @@ export function ExportInPorgress({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Export In Progress</DialogTitle>
+        <DialogTitle>Export Progress</DialogTitle>
         <DialogDescription>This project is being exported.</DialogDescription>
       </DialogHeader>
       <ul className="flex flex-col w-full h-48 overflow-auto gap-2 py-4">
