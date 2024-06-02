@@ -98,21 +98,21 @@ export function ExportInPorgress({
               "bg-green-500": result.currentSession?.status === "complete",
             })}
             style={{
-              width: `${result.currentSession ? (result.currentSession.processed / result.currentSession.images.length) * 100 : 0}%`,
+              width: `${result.currentSession ? (result.currentSession.processedImages.size / result.currentSession.images.length) * 100 : 0}%`,
             }}
           />
         </div>
         <div className="flex flex-row gap-2 justify-between">
           <span className="flex flex-row gap-1">
             <p>
-              {result.currentSession?.processed ?? 0} /{" "}
+              {result.currentSession?.processedImages.size ?? 0} /{" "}
               {result.currentSession?.images.length ?? 0} Processed
             </p>
             <p>
               {"("}
               <span className="text-green-500">
                 {result.currentSession
-                  ? result.currentSession.processed -
+                  ? result.currentSession.processedImages.size -
                     result.currentSession.erroredImages.size
                   : 0}{" "}
                 Success

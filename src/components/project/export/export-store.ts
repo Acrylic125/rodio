@@ -17,12 +17,13 @@ type ExportSession = {
   haltError: unknown | null;
   erroredImages: Set<string>;
   processingImages: Set<string>;
+  processedImages: Set<string>;
   imageNextPtr: number;
-  processed: number;
   status: "idle" | "pending" | "complete";
 };
 
 type ExportStore = {
+  idAcc: number;
   currentSession: ExportSession | null;
   isRunning: () => boolean;
   save: (images: string[], session?: ExportSession) => Promise<void>;
@@ -32,6 +33,7 @@ type ExportStore = {
 };
 
 const useExportStore = create<ExportStore>((set, get) => ({
+  idAcc: 0,
   currentSession: null,
   isRunning: () => {
     const { currentSession } = get();
@@ -46,16 +48,19 @@ const useExportStore = create<ExportStore>((set, get) => ({
         status: "pending",
       };
     } else {
-      const prevSessionId = get().currentSession?.id;
+      const idAcc = get().idAcc + 1;
+      set({
+        idAcc,
+      });
       initialSession = {
-        id: prevSessionId !== undefined ? prevSessionId + 1 : 0,
+        id: idAcc,
         images,
         errors: [],
         haltError: null,
         erroredImages: new Set(),
         processingImages: new Set(),
+        processedImages: new Set(),
         imageNextPtr: 0,
-        processed: 0,
         status: "pending",
       };
     }
@@ -68,6 +73,9 @@ const useExportStore = create<ExportStore>((set, get) => ({
       // If the current session is not the same as the initial session,
       // we do not update the current session.
       if (currentSession === null || currentSession.id !== initialSessionId) {
+        return false;
+      }
+      if (currentSession.status === "idle") {
         return false;
       }
 
@@ -105,11 +113,6 @@ const useExportStore = create<ExportStore>((set, get) => ({
         initialSession.images.length,
         start + ExportConcurrentLimit
       );
-      currentSession.imageNextPtr = end;
-
-      set({
-        currentSession: { ...currentSession },
-      });
 
       await Promise.allSettled(
         initialSession.images.slice(start, end).map(async (imagePath) => {
@@ -140,12 +143,17 @@ const useExportStore = create<ExportStore>((set, get) => ({
           } finally {
             setSession((currentSession) => {
               currentSession.processingImages.delete(imagePath);
-              currentSession.processed += 1;
+              currentSession.processedImages.add(imagePath);
               return currentSession;
             });
           }
         })
       );
+
+      setSession((currentSession) => {
+        currentSession.imageNextPtr = end;
+        return currentSession;
+      });
     }
   },
   retry: () => {
@@ -168,9 +176,13 @@ const useExportStore = create<ExportStore>((set, get) => ({
     if (currentSession.status !== "idle") {
       return;
     }
+    const idAcc = get().idAcc + 1;
+    set({
+      idAcc,
+    });
     save(currentSession.images, {
       ...currentSession,
-      id: currentSession.id + 1,
+      id: idAcc,
     });
   },
 }));
