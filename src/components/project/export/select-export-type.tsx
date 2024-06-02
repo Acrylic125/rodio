@@ -22,6 +22,7 @@ export type ExportType = (typeof ExportTypes)[number];
 export type ExportOptions = {
   type: ExportType;
   onlyExportLabelled: boolean;
+  deleteOldExport: boolean;
 };
 
 export function ExportModalSelectExportType({
@@ -84,6 +85,18 @@ export function ExportModalSelectExportType({
               }}
             />
             <span>Only export labelled</span>
+          </label>
+          <label className="w-fit flex flex-row gap-2 items-center">
+            <Checkbox
+              checked={options.deleteOldExport}
+              onCheckedChange={(checked) => {
+                onOptionsChange({
+                  ...options,
+                  deleteOldExport: !!checked.valueOf(),
+                });
+              }}
+            />
+            <span>Delete old exports</span>
           </label>
         </div>
       </form>
