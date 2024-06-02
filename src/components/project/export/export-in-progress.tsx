@@ -5,142 +5,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Lock } from "@/lib/async";
-import { cn, resolveError } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { nanoid } from "nanoid";
-import { useRef, useState } from "react";
-
-const ExportConcurrentLimit = 8;
-
-export function useExport() {
-  const [images, setImages] = useState<string[]>([]);
-  const [errors, setErrors] = useState<
-    {
-      id: string;
-      title: string;
-      message: string;
-    }[]
-  >([]);
-  const [isPending, setIsPending] = useState(false);
-  const [haltError, setHaltError] = useState<unknown | null>(null);
-  const [processCounts, setProcessCounts] = useState({
-    processed: 0,
-    total: 0,
-  });
-  const [processResultEntries, setProcessResultEntries] = useState({
-    pending: new Set<string>(),
-    errors: new Set<string>(),
-  });
-  const exportId = useRef(0); // Used to cancel previous exports.
-  const processLock = useRef(new Lock());
-  const saveImage = async (imagePath: string) => {
-    setProcessResultEntries((prev) => {
-      prev.pending.add(imagePath);
-      return {
-        ...prev,
-      };
-    });
-    try {
-      await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
-      throw new Error("Fuck");
-    } catch (err) {
-      setProcessResultEntries((prev) => {
-        prev.errors.add(imagePath);
-        return {
-          ...prev,
-        };
-      });
-      setErrors((prev) => [
-        ...prev,
-        {
-          id: nanoid(12),
-          title: imagePath,
-          message: resolveError(err),
-        },
-      ]);
-    } finally {
-      setProcessResultEntries((prev) => {
-        prev.pending.delete(imagePath);
-        return {
-          ...prev,
-        };
-      });
-      setProcessCounts((prev) => ({
-        processed: prev.processed + 1,
-        total: prev.total,
-      }));
-    }
-  };
-  const mutate = async (images: string[]) => {
-    setImages(images);
-    setErrors([]);
-    setIsPending(true);
-    setHaltError(null);
-    setProcessResultEntries({
-      pending: new Set(),
-      errors: new Set(),
-    });
-    setProcessCounts({
-      processed: 0,
-      total: images.length,
-    });
-    const currentExportId = exportId.current + 1;
-    exportId.current = currentExportId;
-
-    const totalIterations = Math.ceil(images.length / ExportConcurrentLimit);
-    for (let i = 0; i < totalIterations; i++) {
-      if (exportId.current !== currentExportId) {
-        break;
-      }
-      await processLock.current.acquire();
-      try {
-        const start = i * ExportConcurrentLimit;
-        const end = Math.min(images.length, start + ExportConcurrentLimit);
-        await Promise.allSettled(images.slice(start, end).map(saveImage));
-        // if (exportId.current !== currentExportId) {
-        //   console.log(
-        //     `Cancelled export ${currentExportId} !== ${exportId.current}`
-        //   );
-        // }
-      } finally {
-        processLock.current.release();
-      }
-    }
-    setIsPending(false);
-  };
-
-  return {
-    isPending,
-    errors,
-    haltError,
-    counts: processCounts,
-    isComplete: processCounts.processed >= processCounts.total,
-    processResultEntries,
-    retry: () => {
-      mutate(images);
-    },
-    cancel: () => {
-      exportId.current += 1;
-      setIsPending(false);
-    },
-    mutate,
-  };
-}
+import useExportStore from "./export-store";
 
 export function ExportInPorgress({
-  result,
   onRequestConfigureExport,
-  onRequestRetry,
-  onRequestCancel,
   onRequestComplete,
 }: {
-  result: ReturnType<typeof useExport>;
   onRequestConfigureExport?: () => void;
-  onRequestRetry?: () => void;
-  onRequestCancel?: () => void;
   onRequestComplete?: () => void;
 }) {
+  const result = useExportStore(
+    ({
+      isPending,
+      errors,
+      haltError,
+      processCounts,
+      processResultEntries,
+      isComplete,
+      cancel,
+      retry,
+    }) => {
+      return {
+        isPending,
+        errors,
+        haltError,
+        processCounts,
+        processResultEntries,
+        isComplete: isComplete(),
+        cancel,
+        retry,
+      };
+    }
+  );
   let processStatus = null;
   let actions = null;
 
@@ -151,7 +49,7 @@ export function ExportInPorgress({
         <Button onMouseDown={onRequestConfigureExport} variant="ghost">
           Configure Export
         </Button>
-        <Button onMouseDown={onRequestRetry} variant="secondary">
+        <Button onMouseDown={result.retry} variant="secondary">
           Retry
         </Button>
         <Button onMouseDown={onRequestComplete}>Complete</Button>
@@ -160,7 +58,7 @@ export function ExportInPorgress({
   } else if (result.isPending) {
     processStatus = <Loader2 className="animate-spin" />;
     actions = (
-      <Button onMouseDown={onRequestCancel} variant="secondary">
+      <Button onMouseDown={result.cancel} variant="secondary">
         Cancel
       </Button>
     );
@@ -171,7 +69,7 @@ export function ExportInPorgress({
         <Button onMouseDown={onRequestConfigureExport} variant="ghost">
           Configure Export
         </Button>
-        <Button onMouseDown={onRequestRetry} variant="secondary">
+        <Button onMouseDown={result.retry} variant="secondary">
           Retry
         </Button>
       </>
@@ -212,19 +110,20 @@ export function ExportInPorgress({
               "bg-green-500": result.isComplete,
             })}
             style={{
-              width: `${(result.counts.processed / result.counts.total) * 100}%`,
+              width: `${(result.processCounts.processed / result.processCounts.total) * 100}%`,
             }}
           />
         </div>
         <div className="flex flex-row gap-2 justify-between">
           <span className="flex flex-row gap-1">
             <p>
-              {result.counts.processed} / {result.counts.total} Processed
+              {result.processCounts.processed} / {result.processCounts.total}{" "}
+              Processed
             </p>
             <p>
               {"("}
               <span className="text-green-500">
-                {result.counts.processed -
+                {result.processCounts.processed -
                   result.processResultEntries.errors.size}{" "}
                 Success
               </span>

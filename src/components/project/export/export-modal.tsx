@@ -6,14 +6,20 @@ import {
   ExportModalSelectExportType,
 } from "./select-export-type";
 import { ExportPreview } from "./export-preview";
-import { ExportInPorgress, useExport } from "./export-in-progress";
+import { ExportInPorgress } from "./export-in-progress";
+import useExportStore from "./export-store";
 
 const ExportInProgressPageId = 2;
 
 export function ExportModal({ children }: { children: React.ReactNode }) {
-  const exportRes = useExport();
+  const exportStore = useExportStore(({ isPending, mutate }) => {
+    return {
+      isPending,
+      mutate,
+    };
+  });
   const [page, setPage] = useState(
-    exportRes.isPending ? ExportInProgressPageId : 0
+    exportStore.isPending ? ExportInProgressPageId : 0
   );
   const nextPage = () => setPage(page + 1);
   const prevPage = () => setPage(page - 1);
@@ -50,7 +56,7 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
       <ExportPreview
         prevPage={prevPage}
         onRequestExport={(images: string[]) => {
-          exportRes.mutate(images);
+          exportStore.mutate(images);
           setPage(ExportInProgressPageId);
         }}
         options={options}
@@ -59,15 +65,8 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
   } else if (page === ExportInProgressPageId) {
     content = (
       <ExportInPorgress
-        result={exportRes}
-        onRequestCancel={() => {
-          exportRes.cancel();
-        }}
         onRequestConfigureExport={() => {
           setPage(1);
-        }}
-        onRequestRetry={() => {
-          exportRes.retry();
         }}
       />
     );
