@@ -49,7 +49,10 @@ export function ExportPreview({
   prevPage,
   options,
 }: {
-  onRequestExport: (images: string[]) => void;
+  onRequestExport: (
+    images: string[],
+    exportTypeMap: Map<string, ExportDistributionType>
+  ) => void;
   prevPage: () => void;
   options: ExportOptions;
 }) {
@@ -161,7 +164,7 @@ export function ExportPreview({
         <Button
           disabled={exportImagesQuery.isLoading || exportImagesQuery.isError}
           onMouseDown={() => {
-            onRequestExport(images ?? []);
+            onRequestExport(images ?? [], exportTypeMap);
           }}
           type="button"
         >

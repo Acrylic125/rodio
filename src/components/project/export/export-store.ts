@@ -124,7 +124,7 @@ const useExportStore = create<ExportStore>((set, get) => ({
         initialSession.images.slice(start, end).map(async (imagePath) => {
           if (
             !setSession((currentSession) => {
-              currentSession.processingImages.add(imagePath);
+              currentSession.processingImages.add(imagePath.path);
               return currentSession;
             })
           ) {
@@ -140,16 +140,16 @@ const useExportStore = create<ExportStore>((set, get) => ({
             setSession((currentSession) => {
               currentSession.errors.push({
                 id: nanoid(12),
-                title: imagePath,
+                title: imagePath.path,
                 message: resolveError(err),
               });
-              currentSession.erroredImages.add(imagePath);
+              currentSession.erroredImages.add(imagePath.path);
               return currentSession;
             });
           } finally {
             setSession((currentSession) => {
-              currentSession.processingImages.delete(imagePath);
-              currentSession.processedImages.add(imagePath);
+              currentSession.processingImages.delete(imagePath.path);
+              currentSession.processedImages.add(imagePath.path);
               return currentSession;
             });
           }

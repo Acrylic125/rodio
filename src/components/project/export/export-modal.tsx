@@ -8,6 +8,7 @@ import {
 import { ExportPreview } from "./export-preview";
 import { ExportProgress } from "./export-progress";
 import useExportStore from "./export-store";
+import { ExportDistributionType } from "./export-types";
 
 const ExportInProgressPageId = 2;
 
@@ -57,8 +58,26 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
     content = (
       <ExportPreview
         prevPage={prevPage}
-        onRequestExport={(images: string[]) => {
-          exportStore.save(images);
+        onRequestExport={(
+          images: string[],
+          exportTypeMap: Map<string, ExportDistributionType>
+        ) => {
+          exportStore.save(
+            images
+              .map((imagePath) => {
+                const distributioinType = exportTypeMap.get(imagePath);
+                if (!distributioinType) {
+                  return null;
+                }
+                return {
+                  path: imagePath,
+                  type: distributioinType,
+                };
+              })
+              .filter(
+                (file): file is Exclude<typeof file, null> => file !== null
+              )
+          );
           setPage(ExportInProgressPageId);
         }}
         options={options}
