@@ -17,32 +17,19 @@ export function ExportInPorgress({
   onRequestComplete?: () => void;
 }) {
   const result = useExportStore(
-    ({
-      isPending,
-      errors,
-      haltError,
-      processCounts,
-      processResultEntries,
-      isComplete,
-      cancel,
-      retry,
-    }) => {
+    ({ currentSession, cancel, retry, continue: _continue }) => {
       return {
-        isPending,
-        errors,
-        haltError,
-        processCounts,
-        processResultEntries,
-        isComplete: isComplete(),
+        currentSession,
         cancel,
         retry,
+        continue: _continue,
       };
     }
   );
   let processStatus = null;
   let actions = null;
 
-  if (result.isComplete) {
+  if (result.currentSession?.status === "complete") {
     processStatus = <p className="text-green-500">Export completed!</p>;
     actions = (
       <>
@@ -55,7 +42,7 @@ export function ExportInPorgress({
         <Button onMouseDown={onRequestComplete}>Complete</Button>
       </>
     );
-  } else if (result.isPending) {
+  } else if (result.currentSession?.status === "pending") {
     processStatus = <Loader2 className="animate-spin" />;
     actions = (
       <Button onMouseDown={result.cancel} variant="secondary">
@@ -72,6 +59,7 @@ export function ExportInPorgress({
         <Button onMouseDown={result.retry} variant="secondary">
           Retry
         </Button>
+        <Button onMouseDown={result.continue}>Continue</Button>
       </>
     );
   }
@@ -83,7 +71,7 @@ export function ExportInPorgress({
         <DialogDescription>This project is being exported.</DialogDescription>
       </DialogHeader>
       <ul className="flex flex-col w-full h-48 overflow-auto gap-2 py-4">
-        {result.errors.map((error) => {
+        {result.currentSession?.errors.map((error) => {
           return (
             <li
               key={error.id}
@@ -106,34 +94,36 @@ export function ExportInPorgress({
         <div className="relative w-full bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 h-4 rounded-sm">
           <div
             className={cn("absolute top-0 left-0 h-full rounded-sm", {
-              "bg-primary": !result.isComplete,
-              "bg-green-500": result.isComplete,
+              "bg-primary": !(result.currentSession?.status === "complete"),
+              "bg-green-500": result.currentSession?.status === "complete",
             })}
             style={{
-              width: `${(result.processCounts.processed / result.processCounts.total) * 100}%`,
+              width: `${result.currentSession ? (result.currentSession.processed / result.currentSession.images.length) * 100 : 0}%`,
             }}
           />
         </div>
         <div className="flex flex-row gap-2 justify-between">
           <span className="flex flex-row gap-1">
             <p>
-              {result.processCounts.processed} / {result.processCounts.total}{" "}
-              Processed
+              {result.currentSession?.processed ?? 0} /{" "}
+              {result.currentSession?.images.length ?? 0} Processed
             </p>
             <p>
               {"("}
               <span className="text-green-500">
-                {result.processCounts.processed -
-                  result.processResultEntries.errors.size}{" "}
+                {result.currentSession
+                  ? result.currentSession.processed -
+                    result.currentSession.erroredImages.size
+                  : 0}{" "}
                 Success
               </span>
               {", "}
               <span className="text-yellow-500">
-                {result.processResultEntries.pending.size} Processing
+                {result.currentSession?.processingImages.size ?? 0} Processing
               </span>
               {", "}
               <span className="text-red-500">
-                {result.processResultEntries.errors.size} Failed
+                {result.currentSession?.erroredImages.size ?? 0} Failed
               </span>
               {")"}
             </p>

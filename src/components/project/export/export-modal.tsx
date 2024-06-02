@@ -12,14 +12,14 @@ import useExportStore from "./export-store";
 const ExportInProgressPageId = 2;
 
 export function ExportModal({ children }: { children: React.ReactNode }) {
-  const exportStore = useExportStore(({ isPending, mutate }) => {
+  const exportStore = useExportStore(({ isRunning, save }) => {
     return {
-      isPending,
-      mutate,
+      isRunning,
+      save,
     };
   });
   const [page, setPage] = useState(
-    exportStore.isPending ? ExportInProgressPageId : 0
+    exportStore.isRunning() ? ExportInProgressPageId : 0
   );
   const nextPage = () => setPage(page + 1);
   const prevPage = () => setPage(page - 1);
@@ -56,7 +56,7 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
       <ExportPreview
         prevPage={prevPage}
         onRequestExport={(images: string[]) => {
-          exportStore.mutate(images);
+          exportStore.save(images);
           setPage(ExportInProgressPageId);
         }}
         options={options}
