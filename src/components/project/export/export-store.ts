@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import { resolveError } from "@/lib/utils";
 import { ExportDistributionType } from "./export-types";
+import { ExportType } from "./select-export-type";
+import { Lock } from "@/lib/async";
 
 const ExportConcurrentLimit = 5;
 
@@ -18,6 +20,7 @@ export type ExportImage = {
 
 type ExportSession = {
   id: number;
+  exportDir: string;
   images: ExportImage[];
   errors: ImageExportError[];
   haltError: unknown | null;
@@ -26,17 +29,41 @@ type ExportSession = {
   processedImages: Set<string>;
   imageNextPtr: number;
   status: "idle" | "pending" | "complete";
+  exportType: ExportType;
+  lock: Lock;
 };
 
 type ExportStore = {
   idAcc: number;
   currentSession: ExportSession | null;
   isRunning: () => boolean;
-  save: (images: ExportImage[], session?: ExportSession) => Promise<void>;
+  save: (
+    exportType: ExportType,
+    images: ExportImage[],
+    session?: ExportSession
+  ) => Promise<void>;
   retry: () => void;
   cancel: () => void;
   continue: () => void;
 };
+
+interface ExportTypeExporter {
+  prepareExport(session: ExportSession): Promise<void>;
+  export(session: ExportSession, exportImage: ExportImage): Promise<void>;
+}
+
+const exporters: Map<ExportType, ExportTypeExporter> = new Map();
+
+const YoloExporter: ExportTypeExporter = {
+  async prepareExport(session: ExportSession) {
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
+  },
+  async export(session: ExportSession, exportImage: ExportImage) {
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
+  },
+};
+
+exporters.set("yolov8", YoloExporter);
 
 const useExportStore = create<ExportStore>((set, get) => ({
   idAcc: 0,
@@ -45,21 +72,34 @@ const useExportStore = create<ExportStore>((set, get) => ({
     const { currentSession } = get();
     return currentSession !== null;
   },
-  save: async (images: ExportImage[], _session?: ExportSession) => {
+  save: async (
+    exportType: ExportType,
+    images: ExportImage[],
+    _session?: Omit<ExportSession, "id" | "status" | "exportType">
+  ) => {
+    const exporter = exporters.get(exportType);
+    if (exporter === undefined) {
+      throw new Error(`Exporter for ${exportType} not found`);
+    }
+
     // We will cancel the previous session if it exists by overriding it with a new session.
     let initialSession: ExportSession;
+    const idAcc = get().idAcc + 1;
+    set({
+      idAcc,
+    });
     if (_session !== undefined) {
       initialSession = {
         ..._session,
+        id: idAcc,
         status: "pending",
+        exportType,
       };
     } else {
-      const idAcc = get().idAcc + 1;
-      set({
-        idAcc,
-      });
+      const dateStr = new Date().toISOString().replace(/:/g, "-");
       initialSession = {
         id: idAcc,
+        exportDir: `${exportType}-${dateStr}-${nanoid(6)}`,
         images,
         errors: [],
         haltError: null,
@@ -68,20 +108,29 @@ const useExportStore = create<ExportStore>((set, get) => ({
         processedImages: new Set(),
         imageNextPtr: 0,
         status: "pending",
+        exportType,
+        lock: new Lock(),
       };
     }
 
     const initialSessionId = initialSession.id;
+    const getCurrentSessionIfInitial = () => {
+      const currentSession = get().currentSession;
+      if (currentSession === null || currentSession.id !== initialSessionId) {
+        return null;
+      }
+      if (currentSession.status === "idle") {
+        return null;
+      }
+      return currentSession;
+    };
     const setSession = (
       fn: (currentSession: ExportSession) => ExportSession
     ) => {
-      const currentSession = get().currentSession;
+      const currentSession = getCurrentSessionIfInitial();
       // If the current session is not the same as the initial session,
       // we do not update the current session.
-      if (currentSession === null || currentSession.id !== initialSessionId) {
-        return false;
-      }
-      if (currentSession.status === "idle") {
+      if (currentSession === null) {
         return false;
       }
 
@@ -96,14 +145,11 @@ const useExportStore = create<ExportStore>((set, get) => ({
       currentSession: { ...initialSession },
     });
 
+    // We will try to save the images in batches of ExportConcurrentLimit.
     while (true) {
-      const currentSession = get().currentSession;
+      const currentSession = getCurrentSessionIfInitial();
       // If the current session is not the same as the initial session, we stop trying to save.
-      if (currentSession === null || currentSession.id !== initialSessionId) {
-        break;
-      }
-      // If the session is in idle, we ignore.
-      if (currentSession.status === "idle") {
+      if (currentSession === null) {
         break;
       }
       // If the current session is complete, we stop trying to save.
@@ -165,7 +211,7 @@ const useExportStore = create<ExportStore>((set, get) => ({
   retry: () => {
     const { currentSession, save } = get();
     if (currentSession === null) return;
-    save(currentSession.images);
+    save(currentSession.exportType, currentSession.images);
   },
   cancel: () => {
     const { currentSession } = get();
@@ -182,13 +228,8 @@ const useExportStore = create<ExportStore>((set, get) => ({
     if (currentSession.status !== "idle") {
       return;
     }
-    const idAcc = get().idAcc + 1;
-    set({
-      idAcc,
-    });
-    save(currentSession.images, {
+    save(currentSession.exportType, currentSession.images, {
       ...currentSession,
-      id: idAcc,
     });
   },
 }));

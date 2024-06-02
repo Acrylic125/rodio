@@ -5,9 +5,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, resolveError } from "@/lib/utils";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import useExportStore from "./export-store";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function ExportProgress({
   onRequestConfigureExport,
@@ -16,7 +17,7 @@ export function ExportProgress({
   onRequestConfigureExport?: () => void;
   onRequestComplete?: () => void;
 }) {
-  const result = useExportStore(
+  const exportStore = useExportStore(
     ({ currentSession, cancel, retry, continue: _continue }) => {
       return {
         currentSession,
@@ -29,23 +30,23 @@ export function ExportProgress({
   let processStatus = null;
   let actions = null;
 
-  if (result.currentSession?.status === "complete") {
+  if (exportStore.currentSession?.status === "complete") {
     processStatus = <p className="text-green-500">Export completed!</p>;
     actions = (
       <>
         <Button onMouseDown={onRequestConfigureExport} variant="ghost">
           Configure Export
         </Button>
-        <Button onMouseDown={result.retry} variant="secondary">
+        <Button onMouseDown={exportStore.retry} variant="secondary">
           Retry
         </Button>
         <Button onMouseDown={onRequestComplete}>Complete</Button>
       </>
     );
-  } else if (result.currentSession?.status === "pending") {
+  } else if (exportStore.currentSession?.status === "pending") {
     processStatus = <Loader2 className="animate-spin" />;
     actions = (
-      <Button onMouseDown={result.cancel} variant="secondary">
+      <Button onMouseDown={exportStore.cancel} variant="secondary">
         Cancel
       </Button>
     );
@@ -56,10 +57,10 @@ export function ExportProgress({
         <Button onMouseDown={onRequestConfigureExport} variant="ghost">
           Configure Export
         </Button>
-        <Button onMouseDown={result.retry} variant="secondary">
+        <Button onMouseDown={exportStore.retry} variant="secondary">
           Retry
         </Button>
-        <Button onMouseDown={result.continue}>Continue</Button>
+        <Button onMouseDown={exportStore.continue}>Continue</Button>
       </>
     );
   }
@@ -71,7 +72,7 @@ export function ExportProgress({
         <DialogDescription>This project is being exported.</DialogDescription>
       </DialogHeader>
       <ul className="flex flex-col w-full h-48 overflow-auto gap-2 py-4">
-        {result.currentSession?.errors.map((error) => {
+        {exportStore.currentSession?.errors.map((error) => {
           return (
             <li
               key={error.id}
@@ -94,36 +95,39 @@ export function ExportProgress({
         <div className="relative w-full bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 h-4 rounded-sm">
           <div
             className={cn("absolute top-0 left-0 h-full rounded-sm", {
-              "bg-primary": !(result.currentSession?.status === "complete"),
-              "bg-green-500": result.currentSession?.status === "complete",
+              "bg-primary": !(
+                exportStore.currentSession?.status === "complete"
+              ),
+              "bg-green-500": exportStore.currentSession?.status === "complete",
             })}
             style={{
-              width: `${result.currentSession ? (result.currentSession.processedImages.size / result.currentSession.images.length) * 100 : 0}%`,
+              width: `${exportStore.currentSession ? (exportStore.currentSession.processedImages.size / exportStore.currentSession.images.length) * 100 : 0}%`,
             }}
           />
         </div>
         <div className="flex flex-row gap-2 justify-between">
           <span className="flex flex-row gap-1">
             <p>
-              {result.currentSession?.processedImages.size ?? 0} /{" "}
-              {result.currentSession?.images.length ?? 0} Processed
+              {exportStore.currentSession?.processedImages.size ?? 0} /{" "}
+              {exportStore.currentSession?.images.length ?? 0} Processed
             </p>
             <p>
               {"("}
               <span className="text-green-500">
-                {result.currentSession
-                  ? result.currentSession.processedImages.size -
-                    result.currentSession.erroredImages.size
+                {exportStore.currentSession
+                  ? exportStore.currentSession.processedImages.size -
+                    exportStore.currentSession.erroredImages.size
                   : 0}{" "}
                 Success
               </span>
               {", "}
               <span className="text-yellow-500">
-                {result.currentSession?.processingImages.size ?? 0} Processing
+                {exportStore.currentSession?.processingImages.size ?? 0}{" "}
+                Processing
               </span>
               {", "}
               <span className="text-red-500">
-                {result.currentSession?.erroredImages.size ?? 0} Failed
+                {exportStore.currentSession?.erroredImages.size ?? 0} Failed
               </span>
               {")"}
             </p>
@@ -131,6 +135,13 @@ export function ExportProgress({
           <span>{processStatus}</span>
         </div>
       </div>
+      {exportStore.currentSession?.haltError && (
+        <Alert className="mb-4" variant="error">
+          <AlertDescription>
+            {resolveError(exportStore.currentSession.haltError)}
+          </AlertDescription>
+        </Alert>
+      )}
       <DialogFooter>{actions}</DialogFooter>
     </>
   );
