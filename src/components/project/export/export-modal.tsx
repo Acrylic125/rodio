@@ -12,6 +12,7 @@ import useExportStore from "./export-store";
 const ExportInProgressPageId = 2;
 
 export function ExportModal({ children }: { children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
   const exportStore = useExportStore(({ isRunning, save }) => {
     return {
       isRunning,
@@ -25,6 +26,7 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
   const prevPage = () => setPage(page - 1);
   const onOpenChange = useCallback(
     (open: boolean) => {
+      setIsOpen(open);
       if (!open) {
         setPage((prev) => {
           if (prev !== ExportInProgressPageId) {
@@ -34,7 +36,7 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
         });
       }
     },
-    [setPage]
+    [setPage, setIsOpen]
   );
   const [options, setExportOptions] = useState<ExportOptions>({
     type: ExportTypes[0],
@@ -65,6 +67,10 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
   } else if (page === ExportInProgressPageId) {
     content = (
       <ExportProgress
+        onRequestComplete={() => {
+          setPage(0);
+          setIsOpen(false);
+        }}
         onRequestConfigureExport={() => {
           setPage(1);
         }}
@@ -73,7 +79,7 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <Dialog onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="w-full max-w-xl md:max-w-2xl lg:max-w-3xl">
         {content}
