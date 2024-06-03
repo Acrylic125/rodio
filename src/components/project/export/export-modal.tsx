@@ -7,8 +7,10 @@ import {
 } from "./select-export-type";
 import { ExportPreview } from "./export-preview";
 import { ExportProgress } from "./export-progress";
-import useExportStore from "./export-store";
+import useExportStore, { generateExportDirname } from "./export-store";
 import { ExportDistributionType } from "./export-types";
+import { useCurrentProjectStore } from "@/stores/current-project-store";
+import path from "path";
 
 const ExportInProgressPageId = 2;
 
@@ -44,6 +46,9 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
     onlyExportLabelled: true,
     deleteOldExport: false,
   });
+  const currentProjectStore = useCurrentProjectStore(({ project }) => ({
+    project,
+  }));
 
   let content = null;
   if (page === 0) {
@@ -62,8 +67,10 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
           images: string[],
           exportTypeMap: Map<string, ExportDistributionType>
         ) => {
+          if (currentProjectStore.project === null) {
+            return;
+          }
           exportStore.save(
-            options.type,
             images
               .map((imagePath) => {
                 const distributioinType = exportTypeMap.get(imagePath);
@@ -77,7 +84,16 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
               })
               .filter(
                 (file): file is Exclude<typeof file, null> => file !== null
-              )
+              ),
+            {
+              exportType: options.type,
+              exportDir: path.join(
+                currentProjectStore.project.getProjectFileFullPath(
+                  currentProjectStore.project.exports
+                ),
+                generateExportDirname(options.type)
+              ),
+            }
           );
           setPage(ExportInProgressPageId);
         }}

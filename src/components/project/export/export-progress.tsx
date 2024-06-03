@@ -71,26 +71,34 @@ export function ExportProgress({
         <DialogTitle>Export Progress</DialogTitle>
         <DialogDescription>This project is being exported.</DialogDescription>
       </DialogHeader>
-      <ul className="flex flex-col w-full h-48 overflow-auto gap-2 py-4">
-        {exportStore.currentSession?.errors.map((error) => {
-          return (
-            <li
-              key={error.id}
-              className="flex flex-row gap-2 border p-4 border-gray-300 dark:border-gray-700"
-            >
-              <div className="text-red-500">
-                <AlertTriangle />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-red-500 text-base">{error.title}</span>
-                <span className="text-gray-700 dark:text-gray-300 text-sm">
-                  {error.message}
-                </span>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {exportStore.currentSession &&
+      exportStore.currentSession.errors.length > 0 ? (
+        <ul className="flex flex-col w-full h-48 overflow-auto gap-2 py-4">
+          {exportStore.currentSession?.errors.map((error) => {
+            return (
+              <li
+                key={error.id}
+                className="flex flex-row gap-2 border p-4 border-gray-300 dark:border-gray-700"
+              >
+                <div className="text-red-500">
+                  <AlertTriangle />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-red-500 text-base">{error.title}</span>
+                  <span className="text-gray-700 dark:text-gray-300 text-sm">
+                    {error.message}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="flex flex-col items-center justify-center w-full h-48 gap-2 py-4">
+          <h3>No errors found</h3>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2 py-4">
         <div className="relative w-full bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 h-4 rounded-sm">
           <div
