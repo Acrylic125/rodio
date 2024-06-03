@@ -59,6 +59,7 @@ fn main() {
             commands::shrink_image::shrink_image,
             commands::image_stat::image_stat,
             commands::image_optimiser::image_optimiser,
+            commands::open_in_fm::open_in_file_manager
         ])
         .plugin(tauri_plugin_sql::Builder::default().build())
         .run(tauri::generate_context!())
