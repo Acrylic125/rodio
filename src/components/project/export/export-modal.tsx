@@ -63,38 +63,57 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
     content = (
       <ExportPreview
         prevPage={prevPage}
-        onRequestExport={(
+        onRequestExport={async (
           images: string[],
           exportTypeMap: Map<string, ExportDistributionType>
         ) => {
           if (currentProjectStore.project === null) {
             return;
           }
-          exportStore.save(
-            images
-              .map((imagePath) => {
-                const distributioinType = exportTypeMap.get(imagePath);
-                if (!distributioinType) {
-                  return null;
-                }
-                return {
-                  path: imagePath,
-                  type: distributioinType,
-                };
-              })
-              .filter(
-                (file): file is Exclude<typeof file, null> => file !== null
-              ),
-            {
-              exportType: options.type,
-              exportDir: path.join(
-                currentProjectStore.project.getProjectFileFullPath(
-                  currentProjectStore.project.exports
-                ),
-                generateExportDirname(options.type)
-              ),
-            }
+          const classes = await currentProjectStore.project.db.getClasses();
+          const classesIdToIndex = new Map(
+            classes.map((cls, index) => [cls.id, index])
           );
+          exportStore.save({
+            data: {
+              images: images
+                .map((imagePath) => {
+                  const distributioinType = exportTypeMap.get(imagePath);
+                  if (!distributioinType) {
+                    return null;
+                  }
+                  return {
+                    path: imagePath,
+                    type: distributioinType,
+                  };
+                })
+                .filter(
+                  (file): file is Exclude<typeof file, null> => file !== null
+                ),
+              classes,
+              getLabelsForImage: async (imagePath: string) => {
+                if (currentProjectStore.project === null) {
+                  return [];
+                }
+                const labels =
+                  await currentProjectStore.project.db.getLabels(imagePath);
+                return labels.map((label) => {
+                  return {
+                    start: label.start,
+                    end: label.end,
+                    classIndex: classesIdToIndex.get(label.class) ?? 0,
+                  };
+                });
+              },
+            },
+            exportType: options.type,
+            exportDir: path.join(
+              currentProjectStore.project.getProjectFileFullPath(
+                currentProjectStore.project.exports
+              ),
+              generateExportDirname(options.type)
+            ),
+          });
           setPage(ExportInProgressPageId);
         }}
         options={options}

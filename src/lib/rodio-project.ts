@@ -299,7 +299,9 @@ export class RodioProjectDB implements RodioProjectFile {
 
   public async getClasses() {
     const db = await this.db();
-    const classes = await db.select<LabelClass[]>(`SELECT * FROM classes`);
+    const classes = await db.select<LabelClass[]>(
+      `SELECT * FROM classes ORDER BY id ASC;`
+    );
     return classes;
   }
 

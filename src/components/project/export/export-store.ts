@@ -4,7 +4,16 @@ import { resolveError } from "@/lib/utils";
 import { ExportDistributionType } from "./export-types";
 import { ExportType } from "./select-export-type";
 import { Lock } from "@/lib/async";
-import { createDir, exists, removeDir } from "@tauri-apps/api/fs";
+import {
+  createDir,
+  exists,
+  removeDir,
+  copyFile,
+  writeFile,
+} from "@tauri-apps/api/fs";
+import { basename } from "path";
+import { Label, LabelClass } from "@/lib/rodio-project";
+import { Pos } from "../label-anchors";
 
 const ExportConcurrentLimit = 5;
 
@@ -19,10 +28,23 @@ export type ExportImage = {
   type: ExportDistributionType;
 };
 
+type ExportData = {
+  images: ExportImage[];
+  classes: LabelClass[];
+  getLabelsForImage: (imagePath: string) => Promise<
+    {
+      start: Pos;
+      end: Pos;
+      classIndex: number;
+    }[]
+  >;
+};
+
 type ExportSession = {
   id: number;
   exportDir: string;
-  images: ExportImage[];
+  // images: ExportImage[];
+  data: ExportData;
   errors: ImageExportError[];
   haltError: unknown | null;
   erroredImages: Set<string>;
@@ -36,12 +58,13 @@ type ExportSession = {
 type ExportOptions = {
   exportType: ExportType;
   exportDir: string;
+  data: ExportData;
 } & (
   | {
       continued: boolean;
       session: Omit<
         ExportSession,
-        "id" | "status" | "exportType" | "haltError" | "exportDir"
+        "id" | "status" | "exportType" | "haltError" | "exportDir" | "data"
       >;
     }
   | {
@@ -55,7 +78,7 @@ type ExportStore = {
   lock: Lock;
   currentSession: ExportSession | null;
   isRunning: () => boolean;
-  save: (images: ExportImage[], options: ExportOptions) => Promise<void>;
+  save: (options: ExportOptions) => Promise<void>;
   retry: () => void;
   cancel: () => void;
   continue: () => void;
@@ -70,8 +93,6 @@ const exporters: Map<ExportType, ExportTypeExporter> = new Map();
 
 const YoloExporter: ExportTypeExporter = {
   async prepareExport(session: ExportSession, continued: boolean) {
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
-
     const prepareDir = async (dir: string) => {
       if (await exists(dir)) {
         if (!continued) {
@@ -98,8 +119,45 @@ const YoloExporter: ExportTypeExporter = {
     await Promise.all(dirs.map(prepareDir));
   },
   async export(session: ExportSession, exportImage: ExportImage) {
-    console.log(`Exporting ${exportImage.path}`);
-    await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
+    let typeDir = null;
+    if (exportImage.type === "test") {
+      typeDir = "test";
+    } else if (exportImage.type === "train") {
+      typeDir = "train";
+    } else if (exportImage.type === "validation") {
+      typeDir = "valid";
+    }
+    if (typeDir === null) {
+      throw new Error(`Invalid export type: ${exportImage.type}`);
+    }
+    await Promise.all([
+      copyFile(
+        exportImage.path,
+        `${session.exportDir}/${typeDir}/images/${basename(exportImage.path)}`,
+        {}
+      ),
+      (async () => {
+        const labels = await session.data.getLabelsForImage(exportImage.path);
+        const labelStr = labels
+          .map((label) => {
+            const midpoint = {
+              x: (label.start.x + label.end.x) / 2,
+              y: (label.start.y + label.end.y) / 2,
+            };
+            const width = Math.abs(label.end.x - label.start.x);
+            const height = Math.abs(label.end.y - label.start.y);
+
+            return `${label.classIndex} ${midpoint.x} ${midpoint.y} ${width} ${height}`;
+          })
+          .join("\n");
+        await writeFile(
+          `${session.exportDir}/${typeDir}/labels/${basename(
+            exportImage.path
+          ).replace(/\.[^.]+$/, ".txt")}`,
+          labelStr
+        );
+      })(),
+    ]);
   },
 };
 
@@ -119,10 +177,13 @@ const useExportStore = create<ExportStore>((set, get) => ({
     const { currentSession } = get();
     return currentSession !== null;
   },
-  save: async (
-    images: ExportImage[],
-    { exportType, continued, exportDir, session: _session }: ExportOptions
-  ) => {
+  save: async ({
+    data,
+    exportType,
+    continued,
+    exportDir,
+    session: _session,
+  }: ExportOptions) => {
     const exporter = exporters.get(exportType);
     if (exporter === undefined) {
       console.error(`Exporter for '${exportType}' not found`);
@@ -139,6 +200,7 @@ const useExportStore = create<ExportStore>((set, get) => ({
       initialSession = {
         ..._session,
         id: idAcc,
+        data,
         exportDir,
         haltError: null,
         status: "pending",
@@ -147,8 +209,8 @@ const useExportStore = create<ExportStore>((set, get) => ({
     } else {
       initialSession = {
         id: idAcc,
+        data,
         exportDir,
-        images,
         errors: [],
         haltError: null,
         erroredImages: new Set(),
@@ -218,7 +280,7 @@ const useExportStore = create<ExportStore>((set, get) => ({
         break;
       }
       // If the current session is complete, we stop trying to save.
-      if (currentSession.imageNextPtr >= initialSession.images.length) {
+      if (currentSession.imageNextPtr >= initialSession.data.images.length) {
         set({
           currentSession: { ...currentSession, status: "complete" },
         });
@@ -227,7 +289,7 @@ const useExportStore = create<ExportStore>((set, get) => ({
 
       const start = currentSession.imageNextPtr;
       const end = Math.min(
-        initialSession.images.length,
+        initialSession.data.images.length,
         start + ExportConcurrentLimit
       );
 
@@ -236,7 +298,7 @@ const useExportStore = create<ExportStore>((set, get) => ({
       try {
         await saveImageLock.acquire();
         await Promise.allSettled(
-          initialSession.images.slice(start, end).map(async (image) => {
+          initialSession.data.images.slice(start, end).map(async (image) => {
             if (
               !setSession((currentSession) => {
                 currentSession.processingImages.add(image.path);
@@ -280,7 +342,8 @@ const useExportStore = create<ExportStore>((set, get) => ({
   retry: () => {
     const { currentSession, save } = get();
     if (currentSession === null) return;
-    save(currentSession.images, {
+    save({
+      data: currentSession.data,
       exportType: currentSession.exportType,
       exportDir: currentSession.exportDir,
       continued: false,
@@ -309,7 +372,8 @@ const useExportStore = create<ExportStore>((set, get) => ({
     if (currentSession.status !== "idle") {
       return;
     }
-    save(currentSession.images, {
+    save({
+      data: currentSession.data,
       exportType: currentSession.exportType,
       exportDir: currentSession.exportDir,
       continued: true,

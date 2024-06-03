@@ -27,10 +27,11 @@ export function ExportProgress({
       };
     }
   );
+  const currentSession = exportStore.currentSession;
   let processStatus = null;
   let actions = null;
 
-  if (exportStore.currentSession?.status === "complete") {
+  if (currentSession?.status === "complete") {
     processStatus = <p className="text-green-500">Export completed!</p>;
     actions = (
       <>
@@ -43,7 +44,7 @@ export function ExportProgress({
         <Button onMouseDown={onRequestComplete}>Complete</Button>
       </>
     );
-  } else if (exportStore.currentSession?.status === "pending") {
+  } else if (currentSession?.status === "pending") {
     processStatus = <Loader2 className="animate-spin" />;
     actions = (
       <Button onMouseDown={exportStore.cancel} variant="secondary">
@@ -71,10 +72,9 @@ export function ExportProgress({
         <DialogTitle>Export Progress</DialogTitle>
         <DialogDescription>This project is being exported.</DialogDescription>
       </DialogHeader>
-      {exportStore.currentSession &&
-      exportStore.currentSession.errors.length > 0 ? (
+      {currentSession && currentSession.errors.length > 0 ? (
         <ul className="flex flex-col w-full h-48 overflow-auto gap-2 py-4">
-          {exportStore.currentSession?.errors.map((error) => {
+          {currentSession.errors.map((error) => {
             return (
               <li
                 key={error.id}
@@ -103,39 +103,36 @@ export function ExportProgress({
         <div className="relative w-full bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 h-4 rounded-sm">
           <div
             className={cn("absolute top-0 left-0 h-full rounded-sm", {
-              "bg-primary": !(
-                exportStore.currentSession?.status === "complete"
-              ),
-              "bg-green-500": exportStore.currentSession?.status === "complete",
+              "bg-primary": !(currentSession?.status === "complete"),
+              "bg-green-500": currentSession?.status === "complete",
             })}
             style={{
-              width: `${exportStore.currentSession ? (exportStore.currentSession.processedImages.size / exportStore.currentSession.images.length) * 100 : 0}%`,
+              width: `${currentSession ? (currentSession.processedImages.size / currentSession.data.images.length) * 100 : 0}%`,
             }}
           />
         </div>
         <div className="flex flex-row gap-2 justify-between">
           <span className="flex flex-row gap-1">
             <p>
-              {exportStore.currentSession?.processedImages.size ?? 0} /{" "}
-              {exportStore.currentSession?.images.length ?? 0} Processed
+              {currentSession?.processedImages.size ?? 0} /{" "}
+              {currentSession?.data.images.length ?? 0} Processed
             </p>
             <p>
               {"("}
               <span className="text-green-500">
-                {exportStore.currentSession
-                  ? exportStore.currentSession.processedImages.size -
-                    exportStore.currentSession.erroredImages.size
+                {currentSession
+                  ? currentSession.processedImages.size -
+                    currentSession.erroredImages.size
                   : 0}{" "}
                 Success
               </span>
               {", "}
               <span className="text-yellow-500">
-                {exportStore.currentSession?.processingImages.size ?? 0}{" "}
-                Processing
+                {currentSession?.processingImages.size ?? 0} Processing
               </span>
               {", "}
               <span className="text-red-500">
-                {exportStore.currentSession?.erroredImages.size ?? 0} Failed
+                {currentSession?.erroredImages.size ?? 0} Failed
               </span>
               {")"}
             </p>
@@ -143,10 +140,10 @@ export function ExportProgress({
           <span>{processStatus}</span>
         </div>
       </div>
-      {exportStore.currentSession?.haltError && (
+      {currentSession?.haltError && (
         <Alert className="mb-4" variant="error">
           <AlertDescription>
-            {resolveError(exportStore.currentSession.haltError)}
+            {resolveError(currentSession.haltError)}
           </AlertDescription>
         </Alert>
       )}
