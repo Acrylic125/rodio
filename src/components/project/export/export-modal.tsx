@@ -63,6 +63,7 @@ export function ExportModal({ children }: { children: React.ReactNode }) {
           exportTypeMap: Map<string, ExportDistributionType>
         ) => {
           exportStore.save(
+            options.type,
             images
               .map((imagePath) => {
                 const distributioinType = exportTypeMap.get(imagePath);

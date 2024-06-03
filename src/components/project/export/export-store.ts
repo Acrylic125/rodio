@@ -57,8 +57,11 @@ const exporters: Map<ExportType, ExportTypeExporter> = new Map();
 const YoloExporter: ExportTypeExporter = {
   async prepareExport(session: ExportSession) {
     await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
+    console.log(`Complete ${session.exportDir}`);
+    // throw new Error("Failed to prepare export");
   },
   async export(session: ExportSession, exportImage: ExportImage) {
+    console.log(`Exporting ${exportImage.path}`);
     await new Promise((resolve) => setTimeout(resolve, Math.random() * 1000));
   },
 };
@@ -75,11 +78,12 @@ const useExportStore = create<ExportStore>((set, get) => ({
   save: async (
     exportType: ExportType,
     images: ExportImage[],
-    _session?: Omit<ExportSession, "id" | "status" | "exportType">
+    _session?: Omit<ExportSession, "id" | "status" | "exportType" | "haltError">
   ) => {
     const exporter = exporters.get(exportType);
     if (exporter === undefined) {
-      throw new Error(`Exporter for ${exportType} not found`);
+      console.error(`Exporter for '${exportType}' not found`);
+      return;
     }
 
     // We will cancel the previous session if it exists by overriding it with a new session.
@@ -92,6 +96,7 @@ const useExportStore = create<ExportStore>((set, get) => ({
       initialSession = {
         ..._session,
         id: idAcc,
+        haltError: null,
         status: "pending",
         exportType,
       };
@@ -145,6 +150,24 @@ const useExportStore = create<ExportStore>((set, get) => ({
       currentSession: { ...initialSession },
     });
 
+    // Bind the lock to the initial session's lock.
+    // We want to ensure we are managing the same lock before and after the preparation.
+    const prepareLock = initialSession.lock;
+    try {
+      await prepareLock.acquire();
+      await exporter.prepareExport(initialSession);
+    } catch (err) {
+      // Cancel the session if the preparation failed.
+      setSession((currentSession) => {
+        currentSession.haltError = err;
+        currentSession.status = "idle";
+        return currentSession;
+      });
+      return;
+    } finally {
+      prepareLock.release();
+    }
+
     // We will try to save the images in batches of ExportConcurrentLimit.
     while (true) {
       const currentSession = getCurrentSessionIfInitial();
@@ -166,41 +189,45 @@ const useExportStore = create<ExportStore>((set, get) => ({
         start + ExportConcurrentLimit
       );
 
-      await Promise.allSettled(
-        initialSession.images.slice(start, end).map(async (imagePath) => {
-          if (
-            !setSession((currentSession) => {
-              currentSession.processingImages.add(imagePath.path);
-              return currentSession;
-            })
-          ) {
-            return;
-          }
+      // We want to ensure we are managing the same lock before and after the preparation.
+      const saveImageLock = initialSession.lock;
+      try {
+        await saveImageLock.acquire();
+        await Promise.allSettled(
+          initialSession.images.slice(start, end).map(async (image) => {
+            if (
+              !setSession((currentSession) => {
+                currentSession.processingImages.add(image.path);
+                return currentSession;
+              })
+            ) {
+              return;
+            }
 
-          try {
-            await new Promise((resolve) =>
-              setTimeout(resolve, Math.random() * 1000)
-            );
-            throw new Error("Error");
-          } catch (err) {
-            setSession((currentSession) => {
-              currentSession.errors.push({
-                id: nanoid(12),
-                title: imagePath.path,
-                message: resolveError(err),
+            try {
+              await exporter.export(initialSession, image);
+            } catch (err) {
+              setSession((currentSession) => {
+                currentSession.errors.push({
+                  id: nanoid(12),
+                  title: image.path,
+                  message: resolveError(err),
+                });
+                currentSession.erroredImages.add(image.path);
+                return currentSession;
               });
-              currentSession.erroredImages.add(imagePath.path);
-              return currentSession;
-            });
-          } finally {
-            setSession((currentSession) => {
-              currentSession.processingImages.delete(imagePath.path);
-              currentSession.processedImages.add(imagePath.path);
-              return currentSession;
-            });
-          }
-        })
-      );
+            } finally {
+              setSession((currentSession) => {
+                currentSession.processingImages.delete(image.path);
+                currentSession.processedImages.add(image.path);
+                return currentSession;
+              });
+            }
+          })
+        );
+      } finally {
+        saveImageLock.release();
+      }
 
       setSession((currentSession) => {
         currentSession.imageNextPtr = end;
