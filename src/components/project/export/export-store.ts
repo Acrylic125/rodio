@@ -10,9 +10,11 @@ import {
   removeDir,
   copyFile,
   writeFile,
+  writeTextFile,
 } from "@tauri-apps/api/fs";
+import { stringify } from "yaml";
 import { basename } from "path";
-import { Label, LabelClass } from "@/lib/rodio-project";
+import { LabelClass } from "@/lib/rodio-project";
 import { Pos } from "../label-anchors";
 
 const ExportConcurrentLimit = 5;
@@ -108,15 +110,46 @@ const YoloExporter: ExportTypeExporter = {
       }
     };
 
-    const dirs = ["test", "train", "valid"].reduce(
-      (acc: string[], type: string) => {
-        const base = `${session.exportDir}/${type}`;
-        acc.push(`${base}/images`, `${base}/labels`);
-        return acc;
-      },
-      []
-    );
-    await Promise.all(dirs.map(prepareDir));
+    const types = ["test", "train", "valid"];
+    const dirs = types.reduce((acc: string[], type: string) => {
+      const base = `${session.exportDir}/${type}`;
+      acc.push(`${base}/images`, `${base}/labels`);
+      return acc;
+    }, []);
+
+    const createDataYaml = async () => {
+      const typePaths = types.reduce(
+        (acc, type) => {
+          acc[type] = `${type}/images`;
+          return acc;
+        },
+        {} as Record<string, string>
+      );
+      const classes = session.data.classes.reduce(
+        (acc, cls, index) => {
+          acc[`${index}`] = cls.name;
+          return acc;
+        },
+        {} as Record<string, string>
+      );
+      const dataYamlPath = `${session.exportDir}/data.yaml`;
+      if (!(await exists(dataYamlPath))) {
+        await writeFile(dataYamlPath, "");
+      }
+      await writeTextFile(
+        dataYamlPath,
+        stringify({
+          path: "./",
+          ...typePaths,
+          names: classes,
+        }),
+        {
+          append: false,
+        }
+      );
+    };
+
+    await Promise.all([...dirs.map(prepareDir), createDataYaml()]);
   },
   async export(session: ExportSession, exportImage: ExportImage) {
     let typeDir = null;
@@ -273,17 +306,18 @@ const useExportStore = create<ExportStore>((set, get) => ({
     }
 
     // We will try to save the images in batches of ExportConcurrentLimit.
+    let isDone = false;
     while (true) {
       const currentSession = getCurrentSessionIfInitial();
       // If the current session is not the same as the initial session, we stop trying to save.
       if (currentSession === null) {
+        console.log("Done 1");
         break;
       }
       // If the current session is complete, we stop trying to save.
       if (currentSession.imageNextPtr >= initialSession.data.images.length) {
-        set({
-          currentSession: { ...currentSession, status: "complete" },
-        });
+        isDone = true;
+        console.log(`Done 2 ${isDone}`);
         break;
       }
 
@@ -335,6 +369,12 @@ const useExportStore = create<ExportStore>((set, get) => ({
 
       setSession((currentSession) => {
         currentSession.imageNextPtr = end;
+        return currentSession;
+      });
+    }
+    if (isDone) {
+      setSession((currentSession) => {
+        currentSession.status = "complete";
         return currentSession;
       });
     }

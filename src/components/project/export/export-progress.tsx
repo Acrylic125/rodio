@@ -8,7 +8,8 @@ import {
 import { cn, resolveError } from "@/lib/utils";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import useExportStore from "./export-store";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { openInFileManager } from "@/commands/open-in-fm";
 
 export function ExportProgress({
   onRequestConfigureExport,
@@ -144,6 +145,23 @@ export function ExportProgress({
         <Alert className="mb-4" variant="error">
           <AlertDescription>
             {resolveError(currentSession.haltError)}
+          </AlertDescription>
+        </Alert>
+      )}
+      {currentSession?.status === "complete" && (
+        <Alert className="flex flex-col gap-1">
+          <AlertTitle>Export Complete!</AlertTitle>
+          <AlertDescription className="text-gray-700 dark:text-gray-300">
+            Exported files are located at{" "}
+            <a
+              className="text-foreground font-medium focus:underline hover:underline"
+              onClick={() => {
+                openInFileManager(currentSession.exportDir);
+              }}
+              tabIndex={0}
+            >
+              {currentSession.exportDir}
+            </a>
           </AlertDescription>
         </Alert>
       )}
