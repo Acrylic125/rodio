@@ -40,7 +40,7 @@
         "readFile": true,
         "writeFile": true,
         "readDir": true,
-        "copyFile": false,
+        "copyFile": true,
         "createDir": true,
         "removeDir": true,
         "removeFile": true,
