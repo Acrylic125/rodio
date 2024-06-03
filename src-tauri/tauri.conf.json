@@ -46,6 +46,7 @@
         "removeFile": true,
         "renameFile": true,
         "exists": true,
+        "all": true,
         "scope": {
           "allow": ["**/*"]
         }
