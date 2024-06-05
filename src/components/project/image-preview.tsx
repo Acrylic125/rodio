@@ -11,6 +11,8 @@ import { useLabelActions } from "./use-label-actions";
 import { useImagePreviewCursors } from "./use-image-preview-cursors";
 import { useOptimisedImage } from "../image/use-optimised-image";
 import { Loader2 } from "lucide-react";
+import { useRef } from "react";
+import { type Stage as StageType } from "konva/lib/Stage";
 
 export default function ImagePreview({
   currentPath,
@@ -43,12 +45,11 @@ export default function ImagePreview({
     currentProjectFileStore.projectPath,
     currentProjectStore.project
   );
+  const stageRef = useRef<StageType>(null);
   const {
     setFocusedLabel,
     focuusedLabel,
     onStageMouseDown,
-    onStageMouseMove,
-    onStageMouseUp,
     onResize,
     newLabel,
   } = useLabelActions({
@@ -56,6 +57,7 @@ export default function ImagePreview({
     saveLabels,
     currentProjectFileStore,
     currentProjectStore,
+    ref: stageRef,
   });
   const { cursor, setLabelSuggestedCursor } = useImagePreviewCursors({
     mode,
@@ -111,6 +113,7 @@ export default function ImagePreview({
         )}
       </div>
       <Stage
+        ref={stageRef}
         width={imageContainerSize.width}
         height={imageContainerSize.height}
         className={cn(
@@ -126,8 +129,6 @@ export default function ImagePreview({
           }
         )}
         onMouseDown={onStageMouseDown}
-        onMouseMove={onStageMouseMove}
-        onMouseUp={onStageMouseUp}
       >
         <Layer>
           {Array.from(currentProjectFileStore.labels.values()).map((label) => {
