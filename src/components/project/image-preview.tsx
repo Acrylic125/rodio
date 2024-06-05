@@ -52,6 +52,7 @@ export default function ImagePreview({
     onStageMouseDown,
     onResize,
     newLabel,
+    hotkeyRefs,
   } = useLabelActions({
     imageContainerSize,
     saveLabels,
@@ -93,77 +94,89 @@ export default function ImagePreview({
 
   return (
     <>
-      <div className="w-full h-full relative">
-        <img
-          src={img.data ? convertFileSrc(img.data) : ""}
-          loading="lazy"
-          alt={`Preview ${currentPath}`}
-          className="w-full h-full object-contain select-none"
-          ref={imageRef}
-          draggable={false}
-          onLoad={(e) => {
-            if (!(e.target instanceof HTMLImageElement)) return;
-            updateContainerSize(e.target);
-          }}
-        />
-        {imageElement !== null && (
-          <div className="absolute top-0 left-0 bg-black w-full h-full flex flex-col items-center justify-center">
-            {imageElement}
-          </div>
-        )}
-      </div>
-      <Stage
-        ref={stageRef}
-        width={imageContainerSize.width}
-        height={imageContainerSize.height}
-        className={cn(
-          "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 absolute",
-          {
-            "cursor-default": cursor === "default",
-            "cursor-ns-resize": cursor === "ns-resize",
-            "cursor-ew-resize": cursor === "ew-resize",
-            "cursor-nwse-resize": cursor === "nwse-resize",
-            "cursor-nesw-resize": cursor === "nesw-resize",
-            "cursor-crosshair": cursor === "crosshair",
-            "cursor-move": cursor === "move",
-          }
-        )}
-        onMouseDown={onStageMouseDown}
+      <div
+        className="w-full h-full flex flex-col justify-center items-center"
+        ref={(e) => {
+          hotkeyRefs.forEach((ref) => {
+            ref.current = e;
+          });
+        }}
+        tabIndex={-1}
       >
-        <Layer>
-          {Array.from(currentProjectFileStore.labels.values()).map((label) => {
-            return (
-              <LabelBox
-                key={label.id}
-                id={label.id}
-                color={
-                  currentProjectStore.classesMap.get(label.class)?.color ??
-                  "#000000"
-                }
-                isSelected={focuusedLabel === label.id}
-                onRequestSelect={setFocusedLabel}
-                onResize={onResize}
-                onRequestCursorChange={setLabelSuggestedCursor}
-                containerDimensions={imageContainerSize}
-                defaultStartPos={label.start}
-                defaultEndPos={label.end}
-              />
-            );
-          })}
-          {newLabel && (
-            <NewLabelBox
-              containerDimensions={imageContainerSize}
-              color={
-                currentProjectStore.classesMap.get(
-                  currentProjectStore.selectedClass ?? 0
-                )?.color ?? "#000000"
-              }
-              pos1={newLabel.pos1}
-              pos2={newLabel.pos2}
-            />
+        <div className="w-full h-full relative">
+          <img
+            src={img.data ? convertFileSrc(img.data) : ""}
+            loading="lazy"
+            alt={`Preview ${currentPath}`}
+            className="w-full h-full object-contain select-none"
+            ref={imageRef}
+            draggable={false}
+            onLoad={(e) => {
+              if (!(e.target instanceof HTMLImageElement)) return;
+              updateContainerSize(e.target);
+            }}
+          />
+          {imageElement !== null && (
+            <div className="absolute top-0 left-0 bg-black w-full h-full flex flex-col items-center justify-center">
+              {imageElement}
+            </div>
           )}
-        </Layer>
-      </Stage>
+        </div>
+        <Stage
+          ref={stageRef}
+          width={imageContainerSize.width}
+          height={imageContainerSize.height}
+          className={cn(
+            "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 absolute",
+            {
+              "cursor-default": cursor === "default",
+              "cursor-ns-resize": cursor === "ns-resize",
+              "cursor-ew-resize": cursor === "ew-resize",
+              "cursor-nwse-resize": cursor === "nwse-resize",
+              "cursor-nesw-resize": cursor === "nesw-resize",
+              "cursor-crosshair": cursor === "crosshair",
+              "cursor-move": cursor === "move",
+            }
+          )}
+          onMouseDown={onStageMouseDown}
+        >
+          <Layer>
+            {Array.from(currentProjectFileStore.labels.values()).map(
+              (label) => {
+                return (
+                  <LabelBox
+                    key={label.id}
+                    id={label.id}
+                    color={
+                      currentProjectStore.classesMap.get(label.class)?.color ??
+                      "#000000"
+                    }
+                    isSelected={focuusedLabel === label.id}
+                    onRequestSelect={setFocusedLabel}
+                    onResize={onResize}
+                    onRequestCursorChange={setLabelSuggestedCursor}
+                    containerDimensions={imageContainerSize}
+                    defaultStartPos={label.start}
+                    defaultEndPos={label.end}
+                  />
+                );
+              }
+            )}
+            {newLabel && (
+              <NewLabelBox
+                containerDimensions={imageContainerSize}
+                color={
+                  currentProjectStore.classesMap.get(
+                    currentProjectStore.selectedClass ?? 0
+                  )?.color ?? "#000000"
+                }
+                pos1={newLabel.pos1}
+                pos2={newLabel.pos2}
+              />
+            )}
+          </Layer>
+        </Stage>{" "}
+      </div>
     </>
   );
 }

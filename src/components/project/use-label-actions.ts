@@ -7,6 +7,7 @@ import { nanoid } from "nanoid";
 import { useSaveLabels } from "./use-save-labels";
 import { useCurrent } from "./use-current";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
+import { useHotkeys } from "react-hotkeys-hook";
 import { Stage } from "konva/lib/Stage";
 import { clamp } from "@/lib/utils";
 
@@ -161,25 +162,48 @@ export function useLabelActions({
     setFocusedLabel,
     saveLabels,
   ]);
-  useKeyPress(() => setFocusedLabel(null), ["Escape"]);
-  useKeyPress(() => {
-    const _focuusedLabel = focuusedLabel;
-    if (_focuusedLabel === null) return;
-    setFocusedLabel(null);
-    currentProjectFileStore.setLabels((prev) => {
-      const projectPath = currentProjectFileStore.projectPath;
-      if (prev.get(_focuusedLabel) !== undefined) {
-        const newLabels = new Map(prev);
-        newLabels.delete(_focuusedLabel);
-        saveLabels(Array.from(newLabels.values()));
-        if (projectPath !== useCurrentProjectFileStore.getState().filePath) {
-          return prev;
+
+  // useHotkeys("a", () => {
+  //   console.log("Pressed a");
+  // });
+  // useHotkeys("esc", (_, handler) => alert(handler.keys));
+
+  const escHotKeyRef = useHotkeys(
+    "esc",
+    () => {
+      setFocusedLabel(null);
+    },
+    [setFocusedLabel]
+  );
+  const deleteLabelHotKeyRef = useHotkeys(
+    "backspace",
+    () => {
+      const _focuusedLabel = focuusedLabel;
+      if (_focuusedLabel === null) return;
+      setFocusedLabel(null);
+      currentProjectFileStore.setLabels((prev) => {
+        const projectPath = currentProjectFileStore.projectPath;
+        if (prev.get(_focuusedLabel) !== undefined) {
+          const newLabels = new Map(prev);
+          newLabels.delete(_focuusedLabel);
+          saveLabels(Array.from(newLabels.values()));
+          if (projectPath !== useCurrentProjectFileStore.getState().filePath) {
+            return prev;
+          }
+          return newLabels;
         }
-        return newLabels;
-      }
-      return prev;
-    });
-  }, ["Backspace"]);
+        return prev;
+      });
+    },
+    [
+      setFocusedLabel,
+      focuusedLabel,
+      currentProjectFileStore.setLabels,
+      saveLabels,
+    ]
+  );
+
+  // useKeyPress(() => {}, ["Backspace"], containerRef);
   const onResize = useCallback(
     (id: LabelId, start: Pos, end: Pos) => {
       currentProjectFileStore.setLabels((prev) => {
@@ -216,5 +240,6 @@ export function useLabelActions({
     onStageMouseDown,
     onResize,
     newLabel,
+    hotkeyRefs: [escHotKeyRef, deleteLabelHotKeyRef],
   };
 }
