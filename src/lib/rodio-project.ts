@@ -288,6 +288,23 @@ export class RodioProjectDB implements RodioProjectFile {
     });
   }
 
+  public async addClasses(
+    classes: {
+      name: string;
+      color: string;
+    }[]
+  ) {
+    const db = await this.db();
+    let sql = "";
+    const params: any[] = [];
+    for (const cls of classes) {
+      let lastParamIndex = params.length; // 1-indexed.
+      sql += `INSERT INTO classes (name, color) VALUES ($${lastParamIndex + 1}, $${lastParamIndex + 2});`;
+      params.push(cls.name, cls.color);
+    }
+    return db.execute(sql, params);
+  }
+
   public async addClass(name: string, color: string) {
     const db = await this.db();
     const res = await db.execute(

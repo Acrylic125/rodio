@@ -48,20 +48,16 @@ export function CreateOrEditClassModal({
 }: {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  onRequestSave?: (cls: { name: string; color: string }) => void;
+  onRequestSave?: (classes: { name: string; color: string }[]) => void;
   error?: string | null;
   isPending?: boolean;
   mode: "create" | "edit";
 }) {
-  // const [name, setName] = useState("");
-  // const [color, setColor] = useState(
-  //   colors[Math.floor(Math.random() * colors.length)]
-  // );
-
   const {
     control,
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm({
     resolver: valibotResolver(schema),
@@ -82,21 +78,25 @@ export function CreateOrEditClassModal({
   const numberOfClasses = classesField.fields.length;
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          reset();
+          classesField.remove();
+          classesField.append({
+            name: "",
+            color: colors[Math.floor(Math.random() * colors.length)],
+          });
+        }
+        setIsOpen(open);
+      }}
+    >
       <DialogContent className="max-w-md md:max-w-lg lg:max-w-xl">
         <form
-          onSubmit={handleSubmit(
-            (data) => {
-              console.log(data);
-            },
-            (err) => {
-              console.log(err);
-            }
-          )}
-          // onSubmit={(e) => {
-          //   e.preventDefault();
-          //   // onRequestSave?.({ name, color });
-          // }}
+          onSubmit={handleSubmit((data) => {
+            onRequestSave?.(data.classes);
+          })}
         >
           {mode === "create" ? (
             <DialogHeader>
@@ -167,6 +167,7 @@ export function CreateOrEditClassModal({
                           <Button
                             className="w-6 h-6 p-1"
                             variant="ghost"
+                            type="button"
                             onMouseDown={() => {
                               classesField.remove(i);
                             }}
@@ -207,6 +208,7 @@ export function CreateOrEditClassModal({
                     color: colors[Math.floor(Math.random() * colors.length)],
                   });
                 }}
+                type="button"
                 variant="secondary"
               >
                 Add
@@ -249,12 +251,12 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
     }
   );
   const createClassMut = useMutation({
-    mutationFn: async ({ name, color }: { name: string; color: string }) => {
+    mutationFn: async (classes: { name: string; color: string }[]) => {
       if (currentProjectStore.project === null) return;
-      const id = await currentProjectStore.project.db.addClass(name, color);
+      await currentProjectStore.project.db.addClasses(classes);
+      const updatedClasses = await currentProjectStore.project.db.getClasses();
 
-      const newClassesMap = new Map(currentProjectStore.classesMap);
-      newClassesMap.set(id, { id, name, color });
+      const newClassesMap = new Map(updatedClasses.map((cls) => [cls.id, cls]));
       currentProjectStore.setClassesMap(newClassesMap);
     },
     onSuccess: () => {
