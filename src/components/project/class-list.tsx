@@ -10,13 +10,33 @@ import {
 } from "../ui/dialog";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
-import { Loader2, PlusIcon } from "lucide-react";
+import { Loader2, PlusIcon, Trash2 } from "lucide-react";
 import { Input } from "../ui/input";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { cn, resolveError } from "@/lib/utils";
 import { Skeleton } from "../ui/skeleton";
 import { useMutation } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { valibotResolver } from "@hookform/resolvers/valibot";
+import { array, maxLength, minLength, object, regex, string } from "valibot";
+
+const schema = object({
+  classes: array(
+    object({
+      name: string([
+        minLength(1, "Class name is required"),
+        maxLength(32, "Class name must be less than 32 characters"),
+        regex(/^[a-zA-Z0-9_]+$/, "Class name must be alphanumeric"),
+      ]),
+      color: string([
+        minLength(7, "Color is required"),
+        maxLength(7, "Color must be a valid 6 character hex"),
+        regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a valid hex color"),
+      ]),
+    })
+  ),
+});
 
 export function CreateOrEditClassModal({
   isOpen,
@@ -33,19 +53,50 @@ export function CreateOrEditClassModal({
   isPending?: boolean;
   mode: "create" | "edit";
 }) {
-  const [name, setName] = useState("");
-  const [color, setColor] = useState(
-    colors[Math.floor(Math.random() * colors.length)]
-  );
+  // const [name, setName] = useState("");
+  // const [color, setColor] = useState(
+  //   colors[Math.floor(Math.random() * colors.length)]
+  // );
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: valibotResolver(schema),
+    shouldFocusError: false,
+    defaultValues: {
+      classes: [
+        {
+          name: "",
+          color: colors[Math.floor(Math.random() * colors.length)],
+        },
+      ],
+    },
+  });
+  const classesField = useFieldArray({
+    control,
+    name: "classes",
+  });
+  const numberOfClasses = classesField.fields.length;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="max-w-md md:max-w-lg lg:max-w-xl">
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            onRequestSave?.({ name, color });
-          }}
+          onSubmit={handleSubmit(
+            (data) => {
+              console.log(data);
+            },
+            (err) => {
+              console.log(err);
+            }
+          )}
+          // onSubmit={(e) => {
+          //   e.preventDefault();
+          //   // onRequestSave?.({ name, color });
+          // }}
         >
           {mode === "create" ? (
             <DialogHeader>
@@ -62,26 +113,105 @@ export function CreateOrEditClassModal({
               </DialogDescription>
             </DialogHeader>
           )}
-          <div className="grid gap-4 py-4">
-            <label className="flex flex-col gap-2">
-              <span>Name</span>
-              <Input
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
+          <div className="flex flex-col gap-2 py-4">
+            <div className="flex flex-row gap-2 w-full">
+              <div className="flex-[2]">
+                <span>Name</span>
+              </div>
+              <div className="flex-1">
+                <span>Color</span>
+              </div>
+              <div className="w-6" />
+            </div>
+            {classesField.fields.length > 0 ? (
+              <ul className="flex flex-col gap-4 w-full h-44 overflow-y-scroll p-1">
+                {new Array(numberOfClasses).fill(null).map((_, i) => {
+                  const cls = classesField.fields?.[i];
+                  if (!cls) return null;
+
+                  const nameError = errors.classes?.[i]?.name;
+                  const colorError = errors.classes?.[i]?.color;
+
+                  return (
+                    <div key={cls.id} className="flex flex-col gap-2">
+                      <div className="flex flex-row gap-2 w-full items-center justify-start">
+                        <div className="w-full grid grid-cols-3 gap-2">
+                          <label className="col-span-2 flex flex-col gap-2">
+                            <Input
+                              key={cls.id}
+                              {...register(`classes.${i}.name`)}
+                              // name="Name"
+                              placeholder="Class Name (e.g. bus_number)"
+                            />
+                          </label>
+                          <label className="col-span-1 flex flex-col gap-2">
+                            <Controller
+                              key={cls.id}
+                              control={control}
+                              name={`classes.${i}.color`}
+                              render={({ field: { value, onChange } }) => {
+                                // console.log(`${value}`);
+                                return (
+                                  <ColorPicker
+                                    background={value}
+                                    setBackground={onChange}
+                                    className="w-full"
+                                  />
+                                );
+                              }}
+                            />
+                          </label>
+                        </div>
+
+                        <div className="h-10 flex items-center justify-center">
+                          <Button
+                            className="w-6 h-6 p-1"
+                            variant="ghost"
+                            onMouseDown={() => {
+                              classesField.remove(i);
+                            }}
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      </div>
+                      {nameError && (
+                        <p className="text-red-500">
+                          {nameError.message || "Name is invalid"}
+                        </p>
+                      )}
+                      {colorError && (
+                        <p className="text-red-500">
+                          {colorError.message || "Color is invalid"}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="flex flex-col w-full h-44 items-center justify-center gap-1">
+                <h3>No Class Added</h3>
+                <p className="w-64 text-center text-gray-700 dark:text-gray-300">
+                  Click the {'"'}Add{'"'} button to add a new class.
+                </p>
+              </div>
+            )}
+
+            <div>
+              <Button
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  classesField.append({
+                    name: "",
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                  });
                 }}
-                name="Name"
-                placeholder="Class Name (e.g. bus_number)"
-              />
-            </label>
-            <label className="flex flex-col gap-2">
-              <span>Color</span>
-              <ColorPicker
-                background={color}
-                setBackground={setColor}
-                className="w-full"
-              />
-            </label>
+                variant="secondary"
+              >
+                Add
+              </Button>
+            </div>
           </div>
 
           {error && (
