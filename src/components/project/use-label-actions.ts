@@ -1,7 +1,6 @@
 import { KonvaEventObject } from "konva/lib/Node";
 import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { Pos } from "./label-anchors";
-import { useKeyPress } from "@/lib/use-keypress";
 import { LabelId } from "@/lib/rodio-project";
 import { nanoid } from "nanoid";
 import { useSaveLabels } from "./use-save-labels";
@@ -203,7 +202,6 @@ export function useLabelActions({
     ]
   );
 
-  // useKeyPress(() => {}, ["Backspace"], containerRef);
   const onResize = useCallback(
     (id: LabelId, start: Pos, end: Pos) => {
       currentProjectFileStore.setLabels((prev) => {
