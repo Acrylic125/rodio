@@ -22,7 +22,7 @@ export const useCurrentProjectFileStore: UseBoundStore<
     ) => void;
     load: (project: RodioProject, path: string) => Promise<void>;
   }>
-> = create((set) => ({
+> = create((set, get) => ({
   filePath: "",
   loadStatus: {
     state: "idle",
@@ -45,6 +45,7 @@ export const useCurrentProjectFileStore: UseBoundStore<
   },
   async load(project: RodioProject, path: string) {
     set({
+      filePath: path,
       loadStatus: {
         state: "loading",
       },
@@ -57,8 +58,8 @@ export const useCurrentProjectFileStore: UseBoundStore<
         cachedLabels !== undefined
           ? cachedLabels
           : await project.db.getLabels(path);
+      if (get().filePath !== path) return;
       set({
-        filePath: path,
         loadStatus: { state: "success" },
         labels: new Map(labels.map((l) => [l.id, l])),
       });

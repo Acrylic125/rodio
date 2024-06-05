@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import { useHotkeys } from "react-hotkeys-hook";
 
 function stringifyBytes(bytes: number) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
@@ -175,6 +176,35 @@ export function ImageList() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 32, // h-10
     overscan: 5,
+  });
+  useHotkeys("meta+down", () => {
+    const currentIndex = imagePaths.findIndex(
+      (image) => image.path === currentProjectStore.selectedImage
+    );
+    if (currentIndex === -1) return;
+    const nextIndex = (currentIndex + 1) % imagePaths.length;
+    const imagePath = imagePaths[nextIndex].path;
+
+    rowVirtualizer.scrollToIndex(nextIndex);
+    currentProjectStore.selectImage(imagePath);
+    if (currentProjectStore.project)
+      currentProjectFileStore.load(currentProjectStore.project, imagePath);
+  });
+  useHotkeys("meta+up", () => {
+    const currentIndex = imagePaths.findIndex(
+      (image) => image.path === currentProjectStore.selectedImage
+    );
+    if (currentIndex === -1) return;
+    const nextIndex =
+      ((currentIndex <= 0 ? imagePaths.length - currentIndex : currentIndex) -
+        1) %
+      imagePaths.length;
+    const imagePath = imagePaths[nextIndex].path;
+
+    rowVirtualizer.scrollToIndex(nextIndex);
+    currentProjectStore.selectImage(imagePath);
+    if (currentProjectStore.project)
+      currentProjectFileStore.load(currentProjectStore.project, imagePath);
   });
   useEffect(() => {
     const unsub = appWindow.listen("tauri://focus", async () => {
