@@ -311,13 +311,11 @@ const useExportStore = create<ExportStore>((set, get) => ({
       const currentSession = getCurrentSessionIfInitial();
       // If the current session is not the same as the initial session, we stop trying to save.
       if (currentSession === null) {
-        console.log("Done 1");
         break;
       }
       // If the current session is complete, we stop trying to save.
       if (currentSession.imageNextPtr >= initialSession.data.images.length) {
         isDone = true;
-        console.log(`Done 2 ${isDone}`);
         break;
       }
 
