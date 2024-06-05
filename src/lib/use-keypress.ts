@@ -1,32 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 
 type KeyCode = "Escape" | "Backspace" | "ControlLeft" | "KeyW";
 
 export function useKeyPress(callback: () => void, keyCodes: KeyCode[]): void {
-  const [, setPressedKeys] = useState<Set<string>>(new Set());
+  const pressedKeysRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const downHandler = (e: KeyboardEvent) => {
       if ((keyCodes as string[]).includes(e.code)) {
-        // e.preventDefault();
-        setPressedKeys((prevKeys) => {
-          const newKeys = new Set(prevKeys);
-          newKeys.add(e.code);
-          if (keyCodes.every((code) => newKeys.has(code))) {
-            callback();
-          }
-          return newKeys;
-        });
+        const newKeys = new Set(pressedKeysRef.current);
+        newKeys.add(e.code);
+        if (keyCodes.every((code) => newKeys.has(code))) {
+          callback();
+        }
+        pressedKeysRef.current = newKeys;
       }
     };
     const upHandler = (e: KeyboardEvent) => {
       if ((keyCodes as string[]).includes(e.code)) {
-        // e.preventDefault();
-        setPressedKeys((prevKeys) => {
-          const newKeys = new Set(prevKeys);
-          newKeys.delete(e.code);
-          return newKeys;
-        });
+        const newKeys = new Set(pressedKeysRef.current);
+        newKeys.delete(e.code);
+        pressedKeysRef.current = newKeys;
       }
     };
     window.addEventListener("keydown", downHandler);
@@ -35,5 +29,5 @@ export function useKeyPress(callback: () => void, keyCodes: KeyCode[]): void {
       window.removeEventListener("keydown", downHandler);
       window.removeEventListener("keyup", upHandler);
     };
-  }, [callback, setPressedKeys]);
+  }, [pressedKeysRef, callback]);
 }

@@ -36,11 +36,9 @@ function Project() {
     }
   }, [currentProjectStore.project, currentProjectStore.load, path]);
   useEffect(() => {
-    // const appWindow = window.__TAURI__.window;
-
-    const unsub = appWindow
-      // .getCurrent()
-      .listen(TauriEvent.WINDOW_CLOSE_REQUESTED, async () => {
+    const unsub = appWindow.listen(
+      TauriEvent.WINDOW_CLOSE_REQUESTED,
+      async () => {
         // const confirmed = await dialog.confirm(
         //   "Are you sure you want to exit?"
         // );
@@ -53,7 +51,8 @@ function Project() {
         //   //   appWindow.close();
         //   // }, 4000);
         // }
-      });
+      }
+    );
     return () => {
       unsub.then((u) => u());
     };
