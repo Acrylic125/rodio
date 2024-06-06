@@ -122,6 +122,7 @@ pub async fn image_optimiser(
         Ok(orientation) => orientation,
         Err(NoFixNeededReason::AleadyCorrect) => 1,
         Err(NoFixNeededReason::NoExif) => 1,
+        Err(NoFixNeededReason::NoOrientationTag) => 1,
         Err(err) => return Err(format!("Failed to get orientation: {:?}", err).to_string()),
     };
 
