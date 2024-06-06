@@ -130,26 +130,26 @@ function DatasetGridItem({
     );
   }
 
-  let exportTypeTag = null;
-  if (type === "train") {
-    exportTypeTag = (
-      <div className="bg-yellow-500 rounded-tr-sm rounded-bl-sm px-2 oy-1 font-bold text-xs">
-        Train
-      </div>
-    );
-  } else if (type === "validation") {
-    exportTypeTag = (
-      <div className="bg-green-500 rounded-tr-sm rounded-bl-sm px-2 oy-1 font-bold text-xs">
-        Validation
-      </div>
-    );
-  } else if (type === "test") {
-    exportTypeTag = (
-      <div className="bg-blue-500 rounded-tr-sm rounded-bl-sm px-2 oy-1 font-bold text-xs">
-        Test
-      </div>
-    );
-  }
+  // let exportTypeTag = null;
+  // if (type === "train") {
+  //   exportTypeTag = (
+  //     <div className="bg-yellow-500 rounded-tr-sm rounded-bl-sm px-2 oy-1 font-bold text-xs">
+  //       Train
+  //     </div>
+  //   );
+  // } else if (type === "validation") {
+  //   exportTypeTag = (
+  //     <div className="bg-green-500 rounded-tr-sm rounded-bl-sm px-2 oy-1 font-bold text-xs">
+  //       Validation
+  //     </div>
+  //   );
+  // } else if (type === "test") {
+  //   exportTypeTag = (
+  //     <div className="bg-blue-500 rounded-tr-sm rounded-bl-sm px-2 oy-1 font-bold text-xs">
+  //       Test
+  //     </div>
+  //   );
+  // }
 
   return (
     <div
