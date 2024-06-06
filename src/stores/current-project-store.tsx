@@ -23,7 +23,13 @@ export const useCurrentProjectStore: UseBoundStore<
     selectedImage: null | string;
     selectImage: (path: string) => void;
     classesMap: Map<LabelClassId, LabelClass>;
-    setClassesMap: (classesMap: Map<LabelClassId, LabelClass>) => void;
+    setClassesMap: (
+      classesMap:
+        | Map<LabelClassId, LabelClass>
+        | ((
+            classesMap: Map<LabelClassId, LabelClass>
+          ) => Map<LabelClassId, LabelClass>)
+    ) => void;
     selectedClass: null | LabelClassId;
     selectClass: (className: LabelClassId) => void;
     load: (path: string) => Promise<void>;
@@ -42,8 +48,22 @@ export const useCurrentProjectStore: UseBoundStore<
     set({ selectedImage: path });
   },
   classesMap: new Map(),
-  setClassesMap(classesMap: Map<LabelClassId, LabelClass>) {
-    set({ classesMap });
+  setClassesMap(
+    classesMap:
+      | Map<LabelClassId, LabelClass>
+      | ((
+          classesMap: Map<LabelClassId, LabelClass>
+        ) => Map<LabelClassId, LabelClass>)
+  ) {
+    if (typeof classesMap === "function") {
+      set(({ classesMap: prev }) => {
+        return {
+          classesMap: classesMap(prev),
+        };
+      });
+    } else {
+      set({ classesMap });
+    }
   },
   selectedClass: null,
   selectClass(labelClass: LabelClassId) {

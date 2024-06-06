@@ -20,6 +20,15 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { array, maxLength, minLength, object, regex, string } from "valibot";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "../ui/context-menu";
+import { LabelClass } from "@/lib/rodio-project";
+import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
+import { useSaveStore } from "@/stores/save-store";
 
 const schema = object({
   classes: array(
@@ -37,6 +46,124 @@ const schema = object({
     })
   ),
 });
+
+export function DeleteClassModal({
+  onRequestClose,
+  labelClass,
+}: {
+  onRequestClose?: () => void;
+  labelClass: LabelClass | null;
+}) {
+  const currentProjectStore = useCurrentProjectStore(
+    ({ project, setClassesMap }) => {
+      return { project, setClassesMap };
+    }
+  );
+  const currrentProjectFileStore = useCurrentProjectFileStore(
+    ({ setLabels }) => {
+      return { setLabels };
+    }
+  );
+  const saveStore = useSaveStore(({ setPendingSavess }) => {
+    return {
+      setPendingSavess,
+    };
+  });
+  const deleteClassMut = useMutation({
+    mutationFn: async () => {
+      if (currentProjectStore.project === null) return;
+      if (labelClass === null) return;
+      await currentProjectStore.project.db.deleteClass(labelClass.id);
+    },
+    onSuccess: () => {
+      if (labelClass === null) return;
+      currentProjectStore.setClassesMap((classesMap) => {
+        const newClassesMap = new Map(classesMap);
+        newClassesMap.delete(labelClass.id);
+        return newClassesMap;
+      });
+      currrentProjectFileStore.setLabels((labels) => {
+        const newLabels = new Map();
+        for (const [labelId, label] of labels) {
+          if (label.class !== labelClass.id) {
+            newLabels.set(labelId, label);
+          }
+        }
+        return newLabels;
+      });
+      saveStore.setPendingSavess((pendingSavess) => {
+        const newPendingSavess = new Map(pendingSavess);
+        for (const [path, pendingSave] of pendingSavess) {
+          newPendingSavess.set(path, {
+            state: pendingSave.state.filter(
+              (label) => label.class !== labelClass.id
+            ),
+            processQueue: pendingSave.processQueue,
+          });
+        }
+        return newPendingSavess;
+      });
+      onRequestClose?.();
+    },
+  });
+  return (
+    <Dialog
+      open={labelClass !== null}
+      onOpenChange={(open) => {
+        if (!open) {
+          onRequestClose?.();
+        }
+      }}
+    >
+      {labelClass !== null && (
+        <DialogContent className="max-w-md md:max-w-lg lg:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription className="flex flex-row items-center gap-1">
+              Are you sure you want to delete{" "}
+              <span className="flex flex-row gap-1 items-center">
+                <span
+                  className="w-4 h-4 rounded-sm border border-gray-300 dark:border-gray-700"
+                  style={{
+                    backgroundColor: labelClass.color,
+                  }}
+                />{" "}
+                <span className="text-foreground">{labelClass.name}</span>?
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <Alert>
+            <AlertDescription>
+              Deleting this class will remove all associated labels. This action
+              cannot be undone.
+            </AlertDescription>
+          </Alert>
+          {deleteClassMut.error ? (
+            <Alert variant="error">
+              <AlertDescription>
+                {resolveError(deleteClassMut.error)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter>
+            <Button variant="secondary" onMouseDown={onRequestClose}>
+              Cancel
+            </Button>
+            <Button
+              disabled={deleteClassMut.isPending}
+              variant="destructive"
+              onClick={() => {
+                deleteClassMut.mutate();
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
 
 export function CreateOrEditClassModal({
   isOpen,
@@ -275,6 +402,8 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
     () => Array.from(currentProjectStore.classesMap.values()),
     [currentProjectStore.classesMap]
   );
+  const [deleteClassModalOpen, setDeleteClassModalOpen] =
+    useState<LabelClass | null>(null);
 
   return (
     <>
@@ -326,7 +455,7 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
                 return (
                   <li
                     key={virtualRow.key}
-                    className="px-1 cursor-pointer h-8 w-full"
+                    className="group px-1 cursor-pointer h-8 w-full"
                     onMouseDown={() => currentProjectStore.selectClass(cls.id)}
                     style={{
                       position: "absolute",
@@ -336,26 +465,45 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    <div
-                      className={cn(
-                        "flex flex-row items-center gap-2 p-1 transition ease-in-out duration-200",
-                        {
-                          "bg-primary text-gray-50 dark:text-gray-950 rounded-sm":
-                            cls.id === currentProjectStore.selectedClass,
-                        }
-                      )}
-                    >
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: cls.color }}
-                      />
-                      <p>{cls.name}</p>
-                    </div>
+                    <ContextMenu>
+                      <ContextMenuTrigger>
+                        <div
+                          className={cn(
+                            "h-full flex flex-row items-center justify-between gap-2 p-1 transition ease-in-out duration-200",
+                            {
+                              "bg-primary text-gray-50 dark:text-gray-950 rounded-sm":
+                                cls.id === currentProjectStore.selectedClass,
+                            }
+                          )}
+                        >
+                          <div className="flex flex-row items-center gap-2">
+                            <div
+                              className="w-4 h-4 rounded-full"
+                              style={{ backgroundColor: cls.color }}
+                            />
+                            <p>{cls.name}</p>
+                          </div>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-64">
+                        <ContextMenuItem
+                          onClick={() => {
+                            setDeleteClassModalOpen(cls);
+                          }}
+                        >
+                          Delete
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   </li>
                 );
               })}
         </ul>
       </div>
+      <DeleteClassModal
+        onRequestClose={() => setDeleteClassModalOpen(null)}
+        labelClass={deleteClassModalOpen}
+      />
     </>
   );
 }

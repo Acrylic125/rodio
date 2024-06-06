@@ -322,6 +322,17 @@ export class RodioProjectDB implements RodioProjectFile {
     return classes;
   }
 
+  public async deleteClass(classId: LabelClassId) {
+    const db = await this.db();
+    return db.execute(
+      `
+      DELETE FROM labels WHERE class_id = $1;
+      DELETE FROM classes WHERE id = $1;
+    `,
+      [classId, classId]
+    );
+  }
+
   public async db() {
     if (this._db === null) {
       throw new Error("Database not loadialized");
