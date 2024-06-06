@@ -130,7 +130,11 @@ export class RodioProjectImages implements RodioProjectFile {
           stat: fileRes.value.stat,
         };
       })
-      .filter((file): file is Exclude<typeof file, null> => file !== null);
+      .filter((file): file is Exclude<typeof file, null> => file !== null)
+      .sort(
+        (a, b) =>
+          a.path.localeCompare(b.path, undefined, { numeric: true }) || 0
+      );
   }
 
   public async load(projectPath: string) {
@@ -202,7 +206,9 @@ export class RodioProjectDB implements RodioProjectFile {
     const files = await db.select<{ path: string }[]>(
       `SELECT DISTINCT path FROM labels`
     );
-    return files;
+    return files.sort((a, b) =>
+      a.path.localeCompare(b.path, undefined, { numeric: true })
+    );
   }
 
   public async deleteLabel(labelId: LabelId) {
