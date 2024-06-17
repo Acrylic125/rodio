@@ -5,7 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { Check, Circle, FilterIcon, TriangleAlertIcon } from "lucide-react";
+import { Check, FilterIcon, TriangleAlertIcon } from "lucide-react";
 import { appWindow } from "@tauri-apps/api/window";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { useDebounce } from "@uidotdev/usehooks";
@@ -40,17 +40,6 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import {
-  ContextMenu,
-  ContextMenuCheckboxItem,
-  ContextMenuContent,
-  ContextMenuLabel,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "../ui/skeleton";
@@ -175,11 +164,26 @@ export function ShrinkImageModal({
   );
 }
 
+const LabelFilterModes = [
+  {
+    type: "all",
+    label: "All",
+  },
+  {
+    type: "includeClass",
+    label: "Include Class",
+  },
+] as const;
+
 type ImageListFilter = {
   searchString: string;
-  labelFilterMode: "all" | "includeClass";
+  labelFilterMode: (typeof LabelFilterModes)[number]["type"];
   classesWithLabel: Set<LabelClassId>;
 };
+
+function serializeFilter(filter: ImageListFilter) {
+  return `${filter.searchString}:${filter.labelFilterMode}:${Array.from(filter.classesWithLabel)}`;
+}
 
 function useImageList(project: RodioProject | null) {
   const [filter, setFilter] = useState<ImageListFilter>({
@@ -189,7 +193,11 @@ function useImageList(project: RodioProject | null) {
   });
   const debouncedFilter = useDebounce(filter, 500);
   const filterImagesQuery = useQuery({
-    queryKey: ["filterImages", project?.projectPath, debouncedFilter],
+    queryKey: [
+      "filterImages",
+      project?.projectPath,
+      serializeFilter(debouncedFilter),
+    ],
     queryFn: async () => {
       if (!project) return [];
       const filter = debouncedFilter;
@@ -270,7 +278,6 @@ function useLabelClasses(project: RodioProject | null) {
 }
 
 export function ImageListFilterButton({
-  filterImagesQuery,
   filter,
   setFilter,
   project,
@@ -302,32 +309,47 @@ export function ImageListFilterButton({
     labelledWithClassesElement = (
       <>
         {classesQuery.data.map((labelClass) => (
-          <ContextMenuCheckboxItem
-            disabled={filter.labelFilterMode === "all"}
-            checked={!!filter.classesWithLabel?.has(labelClass.id)}
-            onCheckedChange={(checked) => {
-              setFilter((filter) => {
-                const newFilter = { ...filter };
-                if (checked) {
-                  newFilter.classesWithLabel.add(labelClass.id);
-                } else {
-                  if (newFilter.classesWithLabel) {
-                    newFilter.classesWithLabel.delete(labelClass.id);
-                  }
-                }
-                return newFilter;
-              });
-            }}
-            className="flex flex-row items-center gap-2"
-          >
-            <div
-              className="w-4 h-4 rounded-full"
-              style={{
-                backgroundColor: labelClass.color,
-              }}
-            />
-            <p>{labelClass.name}</p>
-          </ContextMenuCheckboxItem>
+          <ul key={labelClass.id}>
+            <li>
+              <Button
+                className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
+                variant="ghost"
+                disabled={filter.labelFilterMode === "all"}
+                onClick={() => {
+                  setFilter((filter) => {
+                    const newFilter = { ...filter };
+
+                    const checked = filter.classesWithLabel?.has(labelClass.id);
+                    if (checked) {
+                      const newSet = new Set(newFilter.classesWithLabel);
+                      newSet.delete(labelClass.id);
+                      newFilter.classesWithLabel = newSet;
+                    } else {
+                      const newSet = new Set(newFilter.classesWithLabel);
+                      newSet.add(labelClass.id);
+                      newFilter.classesWithLabel = newSet;
+                    }
+                    return newFilter;
+                  });
+                }}
+              >
+                <div className="flex flex-row items-center justify-center w-6">
+                  {!!filter.classesWithLabel?.has(labelClass.id) && (
+                    <Check className="w-4 h-4 text-foreground" />
+                  )}
+                </div>
+                <div className="flex flex-row items-center gap-2">
+                  <div
+                    className="w-4 h-4 rounded-full"
+                    style={{
+                      backgroundColor: labelClass.color,
+                    }}
+                  />
+                  <p>{labelClass.name}</p>
+                </div>
+              </Button>
+            </li>
+          </ul>
         ))}
       </>
     );
@@ -350,94 +372,35 @@ export function ImageListFilterButton({
         </div>
         <div className="w-full border-b" />
         <ul>
-          <li>
-            <Button
-              className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
-              variant="ghost"
-            >
-              <div className="flex flex-row items-center justify-center w-6">
-                <div className="w-2 h-2 bg-foreground rounded-full" />
-              </div>
-              <p>All</p>
-            </Button>
-          </li>
-          <li>
-            <Button
-              className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
-              variant="ghost"
-            >
-              <div className="flex flex-row items-center justify-center w-6">
-                <div className="w-2 h-2 bg-foreground rounded-full" />
-              </div>
-              <p>All</p>
-            </Button>
-          </li>
+          {LabelFilterModes.map((mode) => {
+            return (
+              <li key={mode.type}>
+                <Button
+                  className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
+                  variant="ghost"
+                  onClick={() => {
+                    setFilter((filter) => {
+                      return {
+                        ...filter,
+                        labelFilterMode: mode.type,
+                      };
+                    });
+                  }}
+                >
+                  <div className="flex flex-row items-center justify-center w-6">
+                    {mode.type === filter.labelFilterMode && (
+                      <div className="w-2 h-2 bg-foreground rounded-full" />
+                    )}
+                  </div>
+                  <p>{mode.label}</p>
+                </Button>
+              </li>
+            );
+          })}
         </ul>
         <div className="w-full border-b" />
-        <ul>
-          <li>
-            <Button
-              className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
-              variant="ghost"
-            >
-              <div className="flex flex-row items-center justify-center w-6">
-                <Check className="w-4 h-4 text-foreground" />
-              </div>
-              <p>All</p>
-            </Button>
-          </li>
-          <li>
-            <Button
-              className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
-              variant="ghost"
-            >
-              <div className="flex flex-row items-center justify-center w-6">
-                <Check className="w-4 h-4 text-foreground" />
-              </div>
-              <p>All</p>
-            </Button>
-          </li>
-        </ul>
+        {labelledWithClassesElement}
       </PopoverContent>
-      {/* <PopoverContent>
-        <ContextMenu>
-          <ContextMenuRadioGroup>
-            <ContextMenuLabel inset>Labelled with Classes</ContextMenuLabel>
-            <ContextMenuSeparator />
-            <ContextMenuRadioGroup
-              value={filter.labelFilterMode}
-              onValueChange={(value) => {
-                setFilter((filter) => {
-                  return {
-                    ...filter,
-                    labelFilterMode:
-                      value as ImageListFilter["labelFilterMode"],
-                  };
-                });
-              }}
-            >
-              <ContextMenuRadioItem value="all">All</ContextMenuRadioItem>
-              <ContextMenuRadioItem value="includeClass">
-                Include Class
-              </ContextMenuRadioItem>
-            </ContextMenuRadioGroup>
-            <ContextMenuSeparator />
-            {labelledWithClassesElement}
-          </ContextMenuRadioGroup>
-        </ContextMenu>
-      </PopoverContent> */}
-      {/* <ContextMenuContent className="w-64"></ContextMenuContent>
-      <ContextMenu modal={open}>
-        <ContextMenuTrigger asChild>
-          <Button
-            onClick={() => setOpen(true)}
-            className="px-0 py-0 w-fit aspect-square"
-            variant={hasNonSearchStringFilters ? "default" : "secondary"}
-          >
-            <FilterIcon />
-          </Button>
-        </ContextMenuTrigger>
-      </ContextMenu> */}
     </Popover>
   );
 }
