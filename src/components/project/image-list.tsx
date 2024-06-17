@@ -5,9 +5,10 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { FilterIcon, TriangleAlertIcon } from "lucide-react";
+import { Check, Circle, FilterIcon, TriangleAlertIcon } from "lucide-react";
 import { appWindow } from "@tauri-apps/api/window";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { useDebounce } from "@uidotdev/usehooks";
 import {
   LabelClassId,
   RodioImage,
@@ -39,9 +40,21 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import {
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuLabel,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "../ui/skeleton";
+import { basename } from "path";
 
 function stringifyBytes(bytes: number) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
@@ -164,31 +177,40 @@ export function ShrinkImageModal({
 
 type ImageListFilter = {
   searchString: string;
-  showWithLabelClass: Set<LabelClassId> | null;
+  labelFilterMode: "all" | "includeClass";
+  classesWithLabel: Set<LabelClassId>;
 };
 
 function useImageList(project: RodioProject | null) {
   const [filter, setFilter] = useState<ImageListFilter>({
     searchString: "",
-    showWithLabelClass: null,
+    labelFilterMode: "all",
+    classesWithLabel: new Set(),
   });
+  const debouncedFilter = useDebounce(filter, 500);
   const filterImagesQuery = useQuery({
-    queryKey: ["filterImages", project, filter],
+    queryKey: ["filterImages", project?.projectPath, debouncedFilter],
     queryFn: async () => {
       if (!project) return [];
-      console.log("Refetching images... 2");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // throw new Error("Test");
+      const filter = debouncedFilter;
       let images = await project.images.getImages(project.projectPath);
       if (filter.searchString !== "") {
-        const fuse = new Fuse(images, {
-          keys: ["path"],
-        });
+        const fuse = new Fuse(
+          images.map((image) => {
+            return {
+              ...image,
+              __name: basename(image.path),
+            };
+          }),
+          {
+            keys: ["__name"],
+          }
+        );
         images = fuse.search(filter.searchString).map((result) => result.item);
       }
-      if (filter.showWithLabelClass) {
+      if (filter.labelFilterMode === "includeClass") {
         const imagesWithLabelClass = await project.db.getImagesWithLabelClass(
-          Array.from(filter.showWithLabelClass.values())
+          Array.from(filter.classesWithLabel.values())
         );
         const imagesWithLabelClassSet = new Set(imagesWithLabelClass);
         images = images.filter((image) =>
@@ -205,17 +227,219 @@ function useImageList(project: RodioProject | null) {
     const unsub = appWindow.listen("tauri://focus", async () => {
       console.log("Refetching images...");
       queryClient.invalidateQueries({
-        queryKey: ["filterImages", project, filter],
+        predicate: (query) => query.queryKey[0] === "filterImages",
       });
     });
     return () => {
       unsub.then((u) => u());
     };
-  }, [filterImagesQuery.refetch, project, filter]);
+  }, [filterImagesQuery.refetch, project?.projectPath, debouncedFilter]);
   return {
     filterImagesQuery,
+    filter,
     setFilter,
   };
+}
+
+function useLabelClasses(project: RodioProject | null) {
+  const classesQuery = useQuery({
+    queryKey: ["labelClasses"],
+    queryFn: async () => {
+      if (!project) return [];
+      let classes = await project.db.getClasses();
+      return classes;
+    },
+  });
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    // React query focus does not work in tauri.
+    // We will use the tauri window focus event to refetch the images.
+    const unsub = appWindow.listen("tauri://focus", async () => {
+      console.log("Refetching images...");
+      queryClient.invalidateQueries({
+        queryKey: ["labelClasses"],
+      });
+    });
+    return () => {
+      unsub.then((u) => u());
+    };
+  }, [classesQuery.refetch, project?.projectPath]);
+  return {
+    classesQuery,
+  };
+}
+
+export function ImageListFilterButton({
+  filterImagesQuery,
+  filter,
+  setFilter,
+  project,
+}: ReturnType<typeof useImageList> & {
+  project: RodioProject | null;
+}) {
+  const { classesQuery } = useLabelClasses(project);
+  const hasNonSearchStringFilters = filter.classesWithLabel;
+
+  let labelledWithClassesElement = null;
+  if (classesQuery.isFetching) {
+    labelledWithClassesElement = (
+      <div className="flex flex-col gap-2">
+        {new Array(3).fill(null).map((_, i) => (
+          <Skeleton key={i} className="w-full h-8" />
+        ))}
+      </div>
+    );
+  } else if (classesQuery.isError) {
+    labelledWithClassesElement = (
+      <div className="w-full p-4 flex flex-col items-center justify-center">
+        <h3 className="text-red-500 text-center">Error loading classes</h3>
+        <p className="text-gray-500 text-center">
+          {resolveError(classesQuery.error)}
+        </p>
+      </div>
+    );
+  } else if (classesQuery.data) {
+    labelledWithClassesElement = (
+      <>
+        {classesQuery.data.map((labelClass) => (
+          <ContextMenuCheckboxItem
+            disabled={filter.labelFilterMode === "all"}
+            checked={!!filter.classesWithLabel?.has(labelClass.id)}
+            onCheckedChange={(checked) => {
+              setFilter((filter) => {
+                const newFilter = { ...filter };
+                if (checked) {
+                  newFilter.classesWithLabel.add(labelClass.id);
+                } else {
+                  if (newFilter.classesWithLabel) {
+                    newFilter.classesWithLabel.delete(labelClass.id);
+                  }
+                }
+                return newFilter;
+              });
+            }}
+            className="flex flex-row items-center gap-2"
+          >
+            <div
+              className="w-4 h-4 rounded-full"
+              style={{
+                backgroundColor: labelClass.color,
+              }}
+            />
+            <p>{labelClass.name}</p>
+          </ContextMenuCheckboxItem>
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          className="px-0 py-0 w-fit aspect-square"
+          variant={hasNonSearchStringFilters ? "default" : "secondary"}
+        >
+          <FilterIcon />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0">
+        <div className="px-2 py-2.5 flex flex-row gap-1">
+          <div className="w-6" />
+          <h3 className="text-sm font-bold">Labelled with Classes</h3>
+        </div>
+        <div className="w-full border-b" />
+        <ul>
+          <li>
+            <Button
+              className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
+              variant="ghost"
+            >
+              <div className="flex flex-row items-center justify-center w-6">
+                <div className="w-2 h-2 bg-foreground rounded-full" />
+              </div>
+              <p>All</p>
+            </Button>
+          </li>
+          <li>
+            <Button
+              className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
+              variant="ghost"
+            >
+              <div className="flex flex-row items-center justify-center w-6">
+                <div className="w-2 h-2 bg-foreground rounded-full" />
+              </div>
+              <p>All</p>
+            </Button>
+          </li>
+        </ul>
+        <div className="w-full border-b" />
+        <ul>
+          <li>
+            <Button
+              className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
+              variant="ghost"
+            >
+              <div className="flex flex-row items-center justify-center w-6">
+                <Check className="w-4 h-4 text-foreground" />
+              </div>
+              <p>All</p>
+            </Button>
+          </li>
+          <li>
+            <Button
+              className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
+              variant="ghost"
+            >
+              <div className="flex flex-row items-center justify-center w-6">
+                <Check className="w-4 h-4 text-foreground" />
+              </div>
+              <p>All</p>
+            </Button>
+          </li>
+        </ul>
+      </PopoverContent>
+      {/* <PopoverContent>
+        <ContextMenu>
+          <ContextMenuRadioGroup>
+            <ContextMenuLabel inset>Labelled with Classes</ContextMenuLabel>
+            <ContextMenuSeparator />
+            <ContextMenuRadioGroup
+              value={filter.labelFilterMode}
+              onValueChange={(value) => {
+                setFilter((filter) => {
+                  return {
+                    ...filter,
+                    labelFilterMode:
+                      value as ImageListFilter["labelFilterMode"],
+                  };
+                });
+              }}
+            >
+              <ContextMenuRadioItem value="all">All</ContextMenuRadioItem>
+              <ContextMenuRadioItem value="includeClass">
+                Include Class
+              </ContextMenuRadioItem>
+            </ContextMenuRadioGroup>
+            <ContextMenuSeparator />
+            {labelledWithClassesElement}
+          </ContextMenuRadioGroup>
+        </ContextMenu>
+      </PopoverContent> */}
+      {/* <ContextMenuContent className="w-64"></ContextMenuContent>
+      <ContextMenu modal={open}>
+        <ContextMenuTrigger asChild>
+          <Button
+            onClick={() => setOpen(true)}
+            className="px-0 py-0 w-fit aspect-square"
+            variant={hasNonSearchStringFilters ? "default" : "secondary"}
+          >
+            <FilterIcon />
+          </Button>
+        </ContextMenuTrigger>
+      </ContextMenu> */}
+    </Popover>
+  );
 }
 
 export function ImageList() {
@@ -231,7 +455,7 @@ export function ImageList() {
       load: state.load,
     };
   });
-  const { filterImagesQuery, setFilter } = useImageList(
+  const { filterImagesQuery, filter, setFilter } = useImageList(
     currentProjectStore.project
   );
   const imagePaths = filterImagesQuery.isFetching
@@ -296,9 +520,9 @@ export function ImageList() {
     );
   } else if (filterImagesQuery.isError) {
     contentElement = (
-      <div className="w-full p-4 flex items-center justify-center">
+      <div className="w-full p-4 flex flex-col items-center justify-center">
         <h3 className="text-red-500 text-center">Error loading images</h3>
-        <p className="text-muted text-center">
+        <p className="text-gray-500 text-center">
           {resolveError(filterImagesQuery.error)}
         </p>
       </div>
@@ -413,10 +637,19 @@ export function ImageList() {
       <div className="flex flex-col gap-2 w-full border-b border-gray-300 dark:border-gray-700 top-0 p-3">
         <h2 className="text-gray-500 font-medium">FILES</h2>
         <div className="flex flex-row gap-2">
-          <Input placeholder="Search" />
-          <Button className="px-0 py-0 w-fit aspect-square" variant="secondary">
-            <FilterIcon />
-          </Button>
+          <Input
+            placeholder="Search"
+            value={filter.searchString}
+            onChange={(e) => {
+              setFilter({ ...filter, searchString: e.target.value });
+            }}
+          />
+          <ImageListFilterButton
+            filter={filter}
+            setFilter={setFilter}
+            filterImagesQuery={filterImagesQuery}
+            project={currentProjectStore.project}
+          />
         </div>
       </div>
       <div
