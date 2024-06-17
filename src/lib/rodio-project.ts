@@ -272,6 +272,18 @@ export class RodioProjectDB implements RodioProjectFile {
     );
   }
 
+  public async getImagesWithLabelClass(classes: LabelClassId[]) {
+    const db = await this.db();
+    const labels = await db.select<
+      {
+        path: string;
+      }[]
+    >(
+      `SELECT DISTINCT path FROM labels WHERE class_id IN (${classes.join(",")})`
+    );
+    return labels.map((label) => label.path);
+  }
+
   public async getLabels(filePath: string) {
     const db = await this.db();
     const labels = await db.select<

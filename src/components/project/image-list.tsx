@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, resolveError } from "@/lib/utils";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -8,7 +8,13 @@ import { Button } from "../ui/button";
 import { FilterIcon, TriangleAlertIcon } from "lucide-react";
 import { appWindow } from "@tauri-apps/api/window";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { RodioImage, isRodioImageTooLarge } from "@/lib/rodio-project";
+import {
+  LabelClassId,
+  RodioImage,
+  RodioProject,
+  isRodioImageTooLarge,
+} from "@/lib/rodio-project";
+import Fuse from "fuse.js";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +40,8 @@ import {
   TableRow,
 } from "../ui/table";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Skeleton } from "../ui/skeleton";
 
 function stringifyBytes(bytes: number) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
@@ -154,14 +162,68 @@ export function ShrinkImageModal({
   );
 }
 
+type ImageListFilter = {
+  searchString: string;
+  showWithLabelClass: Set<LabelClassId> | null;
+};
+
+function useImageList(project: RodioProject | null) {
+  const [filter, setFilter] = useState<ImageListFilter>({
+    searchString: "",
+    showWithLabelClass: null,
+  });
+  const filterImagesQuery = useQuery({
+    queryKey: ["filterImages", project, filter],
+    queryFn: async () => {
+      if (!project) return [];
+      console.log("Refetching images... 2");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // throw new Error("Test");
+      let images = await project.images.getImages(project.projectPath);
+      if (filter.searchString !== "") {
+        const fuse = new Fuse(images, {
+          keys: ["path"],
+        });
+        images = fuse.search(filter.searchString).map((result) => result.item);
+      }
+      if (filter.showWithLabelClass) {
+        const imagesWithLabelClass = await project.db.getImagesWithLabelClass(
+          Array.from(filter.showWithLabelClass.values())
+        );
+        const imagesWithLabelClassSet = new Set(imagesWithLabelClass);
+        images = images.filter((image) =>
+          imagesWithLabelClassSet.has(image.path)
+        );
+      }
+      return images;
+    },
+  });
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    // React query focus does not work in tauri.
+    // We will use the tauri window focus event to refetch the images.
+    const unsub = appWindow.listen("tauri://focus", async () => {
+      console.log("Refetching images...");
+      queryClient.invalidateQueries({
+        queryKey: ["filterImages", project, filter],
+      });
+    });
+    return () => {
+      unsub.then((u) => u());
+    };
+  }, [filterImagesQuery.refetch, project, filter]);
+  return {
+    filterImagesQuery,
+    setFilter,
+  };
+}
+
 export function ImageList() {
   const currentProjectStore = useCurrentProjectStore((state) => {
     return {
       project: state.project,
       selectedImage: state.selectedImage,
       selectImage: state.selectImage,
-      images: state.images,
-      setImages: state.setImages,
     };
   });
   const currentProjectFileStore = useCurrentProjectFileStore((state) => {
@@ -169,7 +231,12 @@ export function ImageList() {
       load: state.load,
     };
   });
-  const imagePaths = currentProjectStore.images;
+  const { filterImagesQuery, setFilter } = useImageList(
+    currentProjectStore.project
+  );
+  const imagePaths = filterImagesQuery.isFetching
+    ? []
+    : filterImagesQuery.data ?? [];
   const parentRef = useRef(null);
   const rowVirtualizer = useVirtualizer({
     count: imagePaths.length,
@@ -178,11 +245,14 @@ export function ImageList() {
     overscan: 5,
   });
   useHotkeys("meta+down", () => {
+    if (imagePaths.length === 0 || filterImagesQuery.isFetching) return;
     const currentIndex = imagePaths.findIndex(
       (image) => image.path === currentProjectStore.selectedImage
     );
-    if (currentIndex === -1) return;
-    const nextIndex = (currentIndex + 1) % imagePaths.length;
+    let nextIndex = 0;
+    if (currentIndex !== -1) {
+      nextIndex = (currentIndex + 1) % imagePaths.length;
+    }
     const imagePath = imagePaths[nextIndex].path;
 
     rowVirtualizer.scrollToIndex(nextIndex);
@@ -191,14 +261,17 @@ export function ImageList() {
       currentProjectFileStore.load(currentProjectStore.project, imagePath);
   });
   useHotkeys("meta+up", () => {
+    if (imagePaths.length === 0 || filterImagesQuery.isFetching) return;
     const currentIndex = imagePaths.findIndex(
       (image) => image.path === currentProjectStore.selectedImage
     );
-    if (currentIndex === -1) return;
-    const nextIndex =
-      ((currentIndex <= 0 ? imagePaths.length - currentIndex : currentIndex) -
-        1) %
-      imagePaths.length;
+    let nextIndex = 0;
+    if (currentIndex !== -1) {
+      nextIndex =
+        ((currentIndex <= 0 ? imagePaths.length - currentIndex : currentIndex) -
+          1) %
+        imagePaths.length;
+    }
     const imagePath = imagePaths[nextIndex].path;
 
     rowVirtualizer.scrollToIndex(nextIndex);
@@ -206,21 +279,129 @@ export function ImageList() {
     if (currentProjectStore.project)
       currentProjectFileStore.load(currentProjectStore.project, imagePath);
   });
-  useEffect(() => {
-    const unsub = appWindow.listen("tauri://focus", async () => {
-      if (!currentProjectStore.project) return;
-      const images = await currentProjectStore.project.images.getImages(
-        currentProjectStore.project.projectPath
-      );
-      currentProjectStore.setImages(images);
-    });
-    return () => {
-      unsub.then((u) => u());
-    };
-  }, [currentProjectStore.setImages, currentProjectStore.project]);
   const [shrinkImagesFocused, setShrinkImagesFocused] = useState<RodioImage[]>(
     []
   );
+
+  let contentElement = null;
+  if (filterImagesQuery.isFetching) {
+    contentElement = (
+      <div className="flex flex-col gap-2">
+        <Skeleton className="w-full h-8" />
+        <Skeleton className="w-full h-8" />
+        <Skeleton className="w-full h-8" />
+        <Skeleton className="w-full h-8" />
+        <Skeleton className="w-full h-8" />
+      </div>
+    );
+  } else if (filterImagesQuery.isError) {
+    contentElement = (
+      <div className="w-full p-4 flex items-center justify-center">
+        <h3 className="text-red-500 text-center">Error loading images</h3>
+        <p className="text-muted text-center">
+          {resolveError(filterImagesQuery.error)}
+        </p>
+      </div>
+    );
+  } else if (filterImagesQuery.data !== undefined) {
+    contentElement = (
+      <ul
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {imagePaths.length > 0 ? (
+          rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const imageFile = imagePaths[virtualRow.index];
+            return (
+              <li
+                key={virtualRow.key}
+                tabIndex={0}
+                className={cn(
+                  "flex flex-row justify-between items-center absolute top-0 left-0 h-8 p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
+                  {
+                    "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
+                      imageFile.path === currentProjectStore.selectedImage,
+                    "text-gray-700 dark:text-gray-300":
+                      imageFile.path !== currentProjectStore.selectedImage,
+                  }
+                )}
+                onClick={() => {
+                  currentProjectStore.selectImage(imageFile.path);
+                  if (currentProjectStore.project)
+                    currentProjectFileStore.load(
+                      currentProjectStore.project,
+                      imageFile.path
+                    );
+                }}
+                style={{
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                <p className="flex-1 overflow-hidden overflow-ellipsis cursor-pointer">
+                  {imageFile.path.split("/").pop()}
+                </p>
+                <div
+                  className="w-fit flex flex-row"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  {isRodioImageTooLarge(imageFile) && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="bg-transparent p-1 aspect-square w-6 h-6 rounded-sm"
+                        >
+                          <TriangleAlertIcon className="text-yellow-500" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80">
+                        <div className="grid gap-4">
+                          <div className="space-y-2">
+                            <h4 className="font-medium leading-none">
+                              Image file is big! {"("}
+                              {stringifyBytes(imageFile.stat.size)}
+                              {")"}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              The image file is using up a lot of space.
+                              Consider shrinking it.
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap2">
+                            <div>
+                              <Button
+                                variant="secondary"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setShrinkImagesFocused([imageFile]);
+                                }}
+                              >
+                                Shrink
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+              </li>
+            );
+          })
+        ) : (
+          <div className="w-full p-4 flex items-center justify-center">
+            <p>No images found</p>
+          </div>
+        )}
+      </ul>
+    );
+  }
 
   return (
     <>
@@ -242,101 +423,7 @@ export function ImageList() {
         className="flex flex-col flex-1 w-full p-2 select-none overflow-auto"
         ref={parentRef}
       >
-        <ul
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            width: "100%",
-            position: "relative",
-          }}
-        >
-          {imagePaths.length > 0 ? (
-            rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const imageFile = imagePaths[virtualRow.index];
-              return (
-                <li
-                  key={virtualRow.key}
-                  tabIndex={0}
-                  className={cn(
-                    "flex flex-row justify-between items-center absolute top-0 left-0 h-8 p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
-                    {
-                      "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
-                        imageFile.path === currentProjectStore.selectedImage,
-                      "text-gray-700 dark:text-gray-300":
-                        imageFile.path !== currentProjectStore.selectedImage,
-                    }
-                  )}
-                  onClick={() => {
-                    currentProjectStore.selectImage(imageFile.path);
-                    if (currentProjectStore.project)
-                      currentProjectFileStore.load(
-                        currentProjectStore.project,
-                        imageFile.path
-                      );
-                  }}
-                  style={{
-                    height: `${virtualRow.size}px`,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                >
-                  <p className="flex-1 overflow-hidden overflow-ellipsis cursor-pointer">
-                    {imageFile.path.split("/").pop()}
-                  </p>
-                  <div
-                    className="w-fit flex flex-row"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                    }}
-                  >
-                    {isRodioImageTooLarge(imageFile) && (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="bg-transparent p-1 aspect-square w-6 h-6 rounded-sm"
-                          >
-                            <TriangleAlertIcon className="text-yellow-500" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80">
-                          <div className="grid gap-4">
-                            <div className="space-y-2">
-                              <h4 className="font-medium leading-none">
-                                Image file is big! {"("}
-                                {stringifyBytes(imageFile.stat.size)}
-                                {")"}
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                The image file is using up a lot of space.
-                                Consider shrinking it.
-                              </p>
-                            </div>
-                            <div className="flex flex-col gap2">
-                              <div>
-                                <Button
-                                  variant="secondary"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    setShrinkImagesFocused([imageFile]);
-                                  }}
-                                >
-                                  Shrink
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  </div>
-                </li>
-              );
-            })
-          ) : (
-            <div className="w-full p-4 flex items-center justify-center">
-              <p>No images found</p>
-            </div>
-          )}
-        </ul>
+        {contentElement}
       </div>
     </>
   );
