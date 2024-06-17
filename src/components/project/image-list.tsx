@@ -44,6 +44,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "../ui/skeleton";
 import { basename } from "path";
+import { ImagesQueryKey, isKeyStartingWith } from "@/lib/query-keys";
 
 function stringifyBytes(bytes: number) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
@@ -194,7 +195,7 @@ function useImageList(project: RodioProject | null) {
   const debouncedFilter = useDebounce(filter, 500);
   const filterImagesQuery = useQuery({
     queryKey: [
-      "filterImages",
+      ImagesQueryKey,
       project?.projectPath,
       serializeFilter(debouncedFilter),
     ],
@@ -233,9 +234,8 @@ function useImageList(project: RodioProject | null) {
     // React query focus does not work in tauri.
     // We will use the tauri window focus event to refetch the images.
     const unsub = appWindow.listen("tauri://focus", async () => {
-      console.log("Refetching images...");
       queryClient.invalidateQueries({
-        predicate: (query) => query.queryKey[0] === "filterImages",
+        predicate: (query) => isKeyStartingWith(query.queryKey, ImagesQueryKey),
       });
     });
     return () => {
