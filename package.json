@@ -25,6 +25,7 @@
     "@tanstack/react-virtual": "^3.5.0",
     "@tanstack/router-cli": "^1.30.0",
     "@tauri-apps/api": "^1",
+    "@uidotdev/usehooks": "^2.4.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "fuse.js": "^7.0.0",
