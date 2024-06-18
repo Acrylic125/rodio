@@ -3,11 +3,13 @@ import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { Skeleton } from "../ui/skeleton";
 import { useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useLabelClasses } from "@/lib/use-label-classes";
+import { LabelClass, LabelClassId } from "@/lib/rodio-project";
 
 export function LabelList({ isPending }: { isPending?: boolean }) {
-  const currentProjectStore = useCurrentProjectStore(({ classesMap }) => {
+  const currentProjectStore = useCurrentProjectStore(({ project }) => {
     return {
-      classesMap,
+      project,
     };
   });
   const currentProjectFileStore = useCurrentProjectFileStore(({ labels }) => {
@@ -15,7 +17,11 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
       labels,
     };
   });
-  const classesMap = currentProjectStore.classesMap;
+  const { classesQuery } = useLabelClasses(currentProjectStore.project);
+  const classesMap = useMemo<Map<LabelClassId, LabelClass>>(() => {
+    if (!classesQuery.data) return new Map();
+    return new Map(classesQuery.data.map((c) => [c.id, c]));
+  }, [classesQuery.data]);
   const parentRef = useRef(null);
 
   const rowVirtualizer = useVirtualizer({
