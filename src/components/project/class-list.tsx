@@ -500,9 +500,13 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
                                 isSelected,
                             }
                           )}
-                          onClick={() =>
-                            currentProjectStore.selectClass(cls.id)
-                          }
+                          onClick={() => {
+                            if (isSelected) {
+                              currentProjectStore.selectClass(null);
+                              return;
+                            }
+                            currentProjectStore.selectClass(cls.id);
+                          }}
                           variant={isSelected ? "default" : "ghost"}
                         >
                           <div className="flex flex-row items-center gap-2">
