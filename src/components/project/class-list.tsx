@@ -31,6 +31,7 @@ import { useCurrentProjectFileStore } from "@/stores/current-project-file-store"
 import { useSaveStore } from "@/stores/save-store";
 import { useLabelClasses } from "@/lib/use-label-classes";
 import { asClassesQK } from "@/lib/query-keys";
+import { nanoid } from "nanoid";
 
 const schema = object({
   classes: array(
@@ -74,6 +75,7 @@ export function DeleteClassModal({
     mutationFn: async () => {
       if (currentProjectStore.project === null) return;
       if (labelClass === null) return;
+      await new Promise((resolve) => setTimeout(resolve, 5000));
       await currentProjectStore.project.db.deleteClass(labelClass.id);
     },
     onSuccess: () => {
@@ -368,7 +370,9 @@ export function CreateOrEditClassModal({
 }
 
 export function ClassList({ isPending }: { isPending?: boolean }) {
-  const [createClassModalOpen, setCreateClassModalOpen] = useState(false);
+  const [createClassModalOpen, setCreateClassModalOpen] = useState<
+    string | null
+  >(null);
   const currentProjectStore = useCurrentProjectStore(
     ({ project, selectedClass, selectClass, setClassesMap }) => {
       return {
@@ -391,7 +395,7 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
       );
     },
     onSuccess: () => {
-      setCreateClassModalOpen(false);
+      setCreateClassModalOpen(null);
     },
   });
   const { classesQuery } = useLabelClasses(currentProjectStore.project);
@@ -410,8 +414,10 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
   return (
     <>
       <CreateOrEditClassModal
-        isOpen={createClassModalOpen}
-        setIsOpen={setCreateClassModalOpen}
+        isOpen={!!createClassModalOpen}
+        setIsOpen={(isOpen) =>
+          setCreateClassModalOpen(isOpen ? nanoid(12) : null)
+        }
         onRequestSave={createClassMut.mutate}
         isPending={createClassMut.isPending}
         error={
@@ -427,7 +433,7 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
           variant="secondary"
           onMouseDown={(e) => {
             e.preventDefault();
-            setCreateClassModalOpen(true);
+            setCreateClassModalOpen(nanoid(12));
           }}
           disabled={isPending}
         >
@@ -504,6 +510,7 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
       </div>
       <DeleteClassModal
         onRequestClose={() => setDeleteClassModalOpen(null)}
+        key={deleteClassModalOpen?.id}
         labelClass={deleteClassModalOpen}
       />
     </>
