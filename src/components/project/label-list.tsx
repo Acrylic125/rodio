@@ -6,6 +6,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLabelClasses } from "@/lib/use-label-classes";
 import { LabelClass, LabelClassId } from "@/lib/rodio-project";
 import { Button } from "../ui/button";
+import { cn } from "@/lib/utils";
 
 export function LabelList({ isPending }: { isPending?: boolean }) {
   const currentProjectStore = useCurrentProjectStore(({ project }) => {
@@ -64,6 +65,8 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
               ))
             : rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const label = labels[virtualRow.index];
+                const isSelected =
+                  currentProjectFileStore.focusedLabel === label.id;
                 return (
                   <li
                     key={virtualRow.key}
@@ -77,13 +80,9 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
                     }}
                   >
                     <Button
-                      variant={
-                        currentProjectFileStore.focusedLabel === label.id
-                          ? "default"
-                          : "ghost"
-                      }
+                      variant={isSelected ? "default" : "ghost"}
                       onClick={() => {
-                        if (currentProjectFileStore.focusedLabel === label.id) {
+                        if (isSelected) {
                           currentProjectFileStore.setFocusedLabel(null);
                           return;
                         }
@@ -99,20 +98,37 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
                         }}
                       />
                       <span className="flex flex-row gap-2">
-                        <p className="text-gray-950 dark:text-gray-50">
+                        <p
+                          className={cn({
+                            "text-gray-950 dark:text-gray-50": !isSelected,
+                            "text-gray-50 dark:text-gray-950": isSelected,
+                          })}
+                        >
                           {"("}
                           {label.start.x.toFixed(2)}, {label.start.y.toFixed(2)}
                           {")"}
                         </p>
-                        <p className="text-gray-700 dark:text-gray-300"> to </p>
-                        <p className="text-gray-950 dark:text-gray-50">
+                        <p
+                          className={cn({
+                            "text-gray-700 dark:text-gray-300": !isSelected,
+                            "text-gray-300 dark:text-gray-700": isSelected,
+                          })}
+                        >
+                          {" "}
+                          to{" "}
+                        </p>
+                        <p
+                          className={cn({
+                            "text-gray-950 dark:text-gray-50": !isSelected,
+                            "text-gray-50 dark:text-gray-950": isSelected,
+                          })}
+                        >
                           {"("}
                           {label.end.x.toFixed(2)}, {label.end.y.toFixed(2)}
                           {")"}
                         </p>
                       </span>
                     </Button>
-                    {/* <div className="flex flex-row items-center gap-2"></div> */}
                   </li>
                 );
               })}
