@@ -373,12 +373,11 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
     string | null
   >(null);
   const currentProjectStore = useCurrentProjectStore(
-    ({ project, selectedClass, selectClass, setClassesMap }) => {
+    ({ project, selectedClass, selectClass }) => {
       return {
         project,
         selectedClass,
         selectClass,
-        setClassesMap,
       };
     }
   );
