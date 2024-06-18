@@ -26,9 +26,17 @@ export default function ImagePreview({
   const { imageRef, imageContainerSize, updateContainerSize } =
     useImageContainer();
   const currentProjectFileStore = useCurrentProjectFileStore(
-    ({ filePath: projectPath, labels, setLabels }) => {
+    ({
+      filePath: projectPath,
+      focusedLabel,
+      setFocusedLabel,
+      labels,
+      setLabels,
+    }) => {
       return {
         projectPath,
+        focusedLabel,
+        setFocusedLabel,
         labels,
         setLabels,
       };

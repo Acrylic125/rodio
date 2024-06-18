@@ -5,6 +5,7 @@ import { useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLabelClasses } from "@/lib/use-label-classes";
 import { LabelClass, LabelClassId } from "@/lib/rodio-project";
+import { Button } from "../ui/button";
 
 export function LabelList({ isPending }: { isPending?: boolean }) {
   const currentProjectStore = useCurrentProjectStore(({ project }) => {
@@ -12,11 +13,15 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
       project,
     };
   });
-  const currentProjectFileStore = useCurrentProjectFileStore(({ labels }) => {
-    return {
-      labels,
-    };
-  });
+  const currentProjectFileStore = useCurrentProjectFileStore(
+    ({ labels, focusedLabel, setFocusedLabel }) => {
+      return {
+        labels,
+        focusedLabel,
+        setFocusedLabel,
+      };
+    }
+  );
   const { classesQuery } = useLabelClasses(currentProjectStore.project);
   const classesMap = useMemo<Map<LabelClassId, LabelClass>>(() => {
     if (!classesQuery.data) return new Map();
@@ -41,7 +46,7 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
         LABELS
       </h2>
       <div
-        className="flex-1 flex flex-col gap-0 py-2 overflow-auto"
+        className="flex-1 flex flex-col gap-0 py-1 overflow-auto"
         ref={parentRef}
       >
         <ul
@@ -62,7 +67,7 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
                 return (
                   <li
                     key={virtualRow.key}
-                    className="p-2 h-10"
+                    className="w-full px-1 h-10"
                     style={{
                       position: "absolute",
                       top: 0,
@@ -71,7 +76,21 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    <div className="flex flex-row items-center gap-2">
+                    <Button
+                      variant={
+                        currentProjectFileStore.focusedLabel === label.id
+                          ? "default"
+                          : "ghost"
+                      }
+                      onClick={() => {
+                        if (currentProjectFileStore.focusedLabel === label.id) {
+                          currentProjectFileStore.setFocusedLabel(null);
+                          return;
+                        }
+                        currentProjectFileStore.setFocusedLabel(label.id);
+                      }}
+                      className="text-left w-full h-fit flex flex-row items-center justify-start gap-2 px-1"
+                    >
                       <div
                         className="w-4 h-4 rounded-full"
                         style={{
@@ -92,7 +111,8 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
                           {")"}
                         </p>
                       </span>
-                    </div>
+                    </Button>
+                    {/* <div className="flex flex-row items-center gap-2"></div> */}
                   </li>
                 );
               })}

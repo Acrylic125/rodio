@@ -3,8 +3,16 @@ import { useCurrentProjectStore } from "@/stores/current-project-store";
 
 export function useCurrent() {
   const currentProjectFileStore = useCurrentProjectFileStore(
-    ({ filePath: projectPath, labels, setLabels }) => {
+    ({
+      filePath: projectPath,
+      focusedLabel,
+      setFocusedLabel,
+      labels,
+      setLabels,
+    }) => {
       return {
+        focusedLabel,
+        setFocusedLabel,
         projectPath,
         labels,
         setLabels,

@@ -23,7 +23,9 @@ export function useLabelActions({
   ref: RefObject<Stage>;
   enableNewLabel?: boolean;
 } & ReturnType<typeof useCurrent>) {
-  const [focuusedLabel, setFocusedLabel] = useState<LabelId | null>(null);
+  // const [focuusedLabel, setFocusedLabel] = useState<LabelId | null>(null);
+  const focuusedLabel = currentProjectFileStore.focusedLabel;
+  const setFocusedLabel = currentProjectFileStore.setFocusedLabel;
   const [newLabel, _setNewLabel] = useState<{
     pos1: Pos;
     pos2: Pos;

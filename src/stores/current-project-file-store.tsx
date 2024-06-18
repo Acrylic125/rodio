@@ -14,6 +14,8 @@ export const useCurrentProjectFileStore: UseBoundStore<
           state: "error";
           message: string;
         };
+    focusedLabel: LabelId | null;
+    setFocusedLabel: (labelId: LabelId | null) => void;
     labels: Map<LabelId, Label>;
     setLabels: (
       labels:
@@ -26,6 +28,10 @@ export const useCurrentProjectFileStore: UseBoundStore<
   filePath: "",
   loadStatus: {
     state: "idle",
+  },
+  focusedLabel: null,
+  setFocusedLabel(labelId: LabelId | null) {
+    set({ focusedLabel: labelId });
   },
   labels: new Map(),
   setLabels(
