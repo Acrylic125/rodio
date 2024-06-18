@@ -412,6 +412,7 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
   return (
     <>
       <CreateOrEditClassModal
+        key={createClassModalOpen}
         isOpen={!!createClassModalOpen}
         setIsOpen={(isOpen) =>
           setCreateClassModalOpen(isOpen ? nanoid(12) : null)
