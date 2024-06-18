@@ -15,7 +15,7 @@ import { Input } from "../ui/input";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { cn, resolveError } from "@/lib/utils";
 import { Skeleton } from "../ui/skeleton";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { valibotResolver } from "@hookform/resolvers/valibot";
@@ -30,6 +30,7 @@ import { LabelClass } from "@/lib/rodio-project";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { useSaveStore } from "@/stores/save-store";
 import { useLabelClasses } from "@/lib/use-label-classes";
+import { asClassesQK } from "@/lib/query-keys";
 
 const schema = object({
   classes: array(
@@ -55,11 +56,9 @@ export function DeleteClassModal({
   onRequestClose?: () => void;
   labelClass: LabelClass | null;
 }) {
-  const currentProjectStore = useCurrentProjectStore(
-    ({ project, setClassesMap }) => {
-      return { project, setClassesMap };
-    }
-  );
+  const currentProjectStore = useCurrentProjectStore(({ project }) => {
+    return { project };
+  });
   const currrentProjectFileStore = useCurrentProjectFileStore(
     ({ setLabels }) => {
       return { setLabels };
@@ -70,6 +69,7 @@ export function DeleteClassModal({
       setPendingSavess,
     };
   });
+  const queryClient = useQueryClient();
   const deleteClassMut = useMutation({
     mutationFn: async () => {
       if (currentProjectStore.project === null) return;
@@ -78,11 +78,13 @@ export function DeleteClassModal({
     },
     onSuccess: () => {
       if (labelClass === null) return;
-      currentProjectStore.setClassesMap((classesMap) => {
-        const newClassesMap = new Map(classesMap);
-        newClassesMap.delete(labelClass.id);
-        return newClassesMap;
-      });
+      queryClient.setQueryData(
+        asClassesQK(currentProjectStore.project?.projectPath),
+        (classes: LabelClass[] | undefined) => {
+          if (!classes) return [];
+          return classes.filter((c) => c.id !== labelClass.id);
+        }
+      );
       currrentProjectFileStore.setLabels((labels) => {
         const newLabels = new Map();
         for (const [labelId, label] of labels) {
@@ -377,14 +379,16 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
       };
     }
   );
+  const queryClient = useQueryClient();
   const createClassMut = useMutation({
     mutationFn: async (classes: { name: string; color: string }[]) => {
       if (currentProjectStore.project === null) return;
       await currentProjectStore.project.db.addClasses(classes);
       const updatedClasses = await currentProjectStore.project.db.getClasses();
-
-      const newClassesMap = new Map(updatedClasses.map((cls) => [cls.id, cls]));
-      currentProjectStore.setClassesMap(newClassesMap);
+      queryClient.setQueryData(
+        asClassesQK(currentProjectStore.project.projectPath),
+        updatedClasses
+      );
     },
     onSuccess: () => {
       setCreateClassModalOpen(false);

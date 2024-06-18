@@ -11,8 +11,10 @@ import { useLabelActions } from "./use-label-actions";
 import { useImagePreviewCursors } from "./use-image-preview-cursors";
 import { useOptimisedImage } from "../image/use-optimised-image";
 import { Loader2 } from "lucide-react";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { type Stage as StageType } from "konva/lib/Stage";
+import { useLabelClasses } from "@/lib/use-label-classes";
+import { LabelClass, LabelClassId } from "@/lib/rodio-project";
 
 export default function ImagePreview({
   currentPath,
@@ -33,10 +35,9 @@ export default function ImagePreview({
     }
   );
   const currentProjectStore = useCurrentProjectStore(
-    ({ project, classesMap, selectedClass }) => {
+    ({ project, selectedClass }) => {
       return {
         project,
-        classesMap,
         selectedClass,
       };
     }
@@ -46,6 +47,14 @@ export default function ImagePreview({
     currentProjectStore.project
   );
   const stageRef = useRef<StageType>(null);
+  const { classesQuery } = useLabelClasses(currentProjectStore.project);
+  const classesMap = useMemo<Map<LabelClassId, LabelClass>>(() => {
+    if (!classesQuery.data) return new Map();
+    return new Map(classesQuery.data.map((c) => [c.id, c]));
+  }, [classesQuery.data]);
+  const selectedClass = currentProjectStore.selectedClass
+    ? classesMap.get(currentProjectStore.selectedClass)
+    : undefined;
   const {
     setFocusedLabel,
     focuusedLabel,
@@ -59,6 +68,7 @@ export default function ImagePreview({
     currentProjectFileStore,
     currentProjectStore,
     ref: stageRef,
+    enableNewLabel: !!selectedClass,
   });
   const { cursor, setLabelSuggestedCursor } = useImagePreviewCursors({
     mode,
@@ -147,10 +157,7 @@ export default function ImagePreview({
                   <LabelBox
                     key={label.id}
                     id={label.id}
-                    color={
-                      currentProjectStore.classesMap.get(label.class)?.color ??
-                      "#000000"
-                    }
+                    color={classesMap.get(label.class)?.color ?? "#000000"}
                     isSelected={focuusedLabel === label.id}
                     onRequestSelect={setFocusedLabel}
                     onResize={onResize}
@@ -162,20 +169,16 @@ export default function ImagePreview({
                 );
               }
             )}
-            {newLabel && (
+            {newLabel && selectedClass && (
               <NewLabelBox
                 containerDimensions={imageContainerSize}
-                color={
-                  currentProjectStore.classesMap.get(
-                    currentProjectStore.selectedClass ?? 0
-                  )?.color ?? "#000000"
-                }
+                color={selectedClass.color}
                 pos1={newLabel.pos1}
                 pos2={newLabel.pos2}
               />
             )}
           </Layer>
-        </Stage>{" "}
+        </Stage>
       </div>
     </>
   );

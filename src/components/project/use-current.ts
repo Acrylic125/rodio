@@ -12,10 +12,9 @@ export function useCurrent() {
     }
   );
   const currentProjectStore = useCurrentProjectStore(
-    ({ project, classesMap, selectedClass }) => {
+    ({ project, selectedClass }) => {
       return {
         project,
-        classesMap,
         selectedClass,
       };
     }

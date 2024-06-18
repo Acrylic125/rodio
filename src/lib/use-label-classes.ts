@@ -1,14 +1,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RodioProject } from "./rodio-project";
 import { useEffect } from "react";
-import { LabelClassesQueryKey, isKeyStartingWith } from "./query-keys";
+import { asClassesQK, isKeyStartingWith } from "./query-keys";
 import { appWindow } from "@tauri-apps/api/window";
 
 export function useLabelClasses(project: RodioProject | null) {
   const classesQuery = useQuery({
-    queryKey: [LabelClassesQueryKey, project?.projectPath],
+    queryKey: asClassesQK(project?.projectPath),
     queryFn: async () => {
       if (!project) return [];
+      await new Promise((resolve) => setTimeout(resolve, 5000));
       let classes = await project.db.getClasses();
       return classes;
     },
@@ -20,7 +21,7 @@ export function useLabelClasses(project: RodioProject | null) {
     const unsub = appWindow.listen("tauri://focus", async () => {
       queryClient.invalidateQueries({
         predicate: (query) =>
-          isKeyStartingWith(query.queryKey, LabelClassesQueryKey),
+          isKeyStartingWith(query.queryKey, asClassesQK(project?.projectPath)),
       });
     });
     return () => {

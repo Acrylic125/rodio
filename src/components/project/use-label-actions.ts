@@ -16,10 +16,12 @@ export function useLabelActions({
   currentProjectFileStore,
   currentProjectStore,
   ref,
+  enableNewLabel,
 }: {
   imageContainerSize: { width: number; height: number };
   saveLabels: ReturnType<typeof useSaveLabels>["saveLabels"];
   ref: RefObject<Stage>;
+  enableNewLabel?: boolean;
 } & ReturnType<typeof useCurrent>) {
   const [focuusedLabel, setFocusedLabel] = useState<LabelId | null>(null);
   const [newLabel, _setNewLabel] = useState<{
@@ -45,6 +47,7 @@ export function useLabelActions({
   );
   const onStageMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      if (!enableNewLabel) return;
       const clickedOnEmpty = e.target === e.target.getStage();
       if (clickedOnEmpty) {
         setFocusedLabel(null);
@@ -70,7 +73,7 @@ export function useLabelActions({
         });
       }
     },
-    [setFocusedLabel, setNewLabel, imageContainerSize]
+    [setFocusedLabel, setNewLabel, imageContainerSize, enableNewLabel]
   );
   useEffect(() => {
     if (newLabel === null) {
@@ -108,38 +111,42 @@ export function useLabelActions({
     };
 
     const mouseUp = () => {
-      const id = nanoid(16);
-      const newLabel = newLabelRef.current;
-      if (newLabel === null) return;
-      const start = {
-        x: Math.min(newLabel.pos1.x, newLabel.pos2.x),
-        y: Math.min(newLabel.pos1.y, newLabel.pos2.y),
-      };
-      const end = {
-        x: Math.max(newLabel.pos1.x, newLabel.pos2.x),
-        y: Math.max(newLabel.pos1.y, newLabel.pos2.y),
-      };
+      if (enableNewLabel) {
+        const id = nanoid(16);
+        const newLabel = newLabelRef.current;
+        if (newLabel === null) return;
+        const start = {
+          x: Math.min(newLabel.pos1.x, newLabel.pos2.x),
+          y: Math.min(newLabel.pos1.y, newLabel.pos2.y),
+        };
+        const end = {
+          x: Math.max(newLabel.pos1.x, newLabel.pos2.x),
+          y: Math.max(newLabel.pos1.y, newLabel.pos2.y),
+        };
 
-      const selectedClass = currentProjectStore.selectedClass;
-      if (selectedClass !== null) {
-        const projectPath = currentProjectFileStore.projectPath;
-        currentProjectFileStore.setLabels((prev) => {
-          const newLabels = new Map(prev);
-          newLabels.set(id, {
-            id,
-            class: selectedClass,
-            start,
-            end,
+        const selectedClass = currentProjectStore.selectedClass;
+        if (selectedClass !== null) {
+          const projectPath = currentProjectFileStore.projectPath;
+          currentProjectFileStore.setLabels((prev) => {
+            const newLabels = new Map(prev);
+            newLabels.set(id, {
+              id,
+              class: selectedClass,
+              start,
+              end,
+            });
+            saveLabels(Array.from(newLabels.values()));
+            if (
+              projectPath !== useCurrentProjectFileStore.getState().filePath
+            ) {
+              return prev;
+            }
+            return newLabels;
           });
-          saveLabels(Array.from(newLabels.values()));
-          if (projectPath !== useCurrentProjectFileStore.getState().filePath) {
-            return prev;
-          }
-          return newLabels;
-        });
-      }
+        }
 
-      setFocusedLabel(id);
+        setFocusedLabel(id);
+      }
       setNewLabel(null);
     };
 
@@ -151,6 +158,7 @@ export function useLabelActions({
       document.removeEventListener("mouseup", mouseUp);
     };
   }, [
+    enableNewLabel,
     newLabel !== null,
     ref.current,
     imageContainerSize,
@@ -161,11 +169,6 @@ export function useLabelActions({
     setFocusedLabel,
     saveLabels,
   ]);
-
-  // useHotkeys("a", () => {
-  //   console.log("Pressed a");
-  // });
-  // useHotkeys("esc", (_, handler) => alert(handler.keys));
 
   const escHotKeyRef = useHotkeys(
     "esc",
