@@ -3,6 +3,7 @@ import { QueryKey } from "@tanstack/react-query";
 export type PartialQueryKey = string | string[];
 
 export const ImagesQueryKey = "images" satisfies PartialQueryKey;
+export const LabelClassesQueryKey = "classes" satisfies PartialQueryKey;
 
 export function isKeyStartingWith(
   queryKey: QueryKey,

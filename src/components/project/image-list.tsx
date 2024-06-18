@@ -45,6 +45,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "../ui/skeleton";
 import { basename } from "path";
 import { ImagesQueryKey, isKeyStartingWith } from "@/lib/query-keys";
+import { useLabelClasses } from "@/lib/use-label-classes";
 
 function stringifyBytes(bytes: number) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
@@ -246,34 +247,6 @@ function useImageList(project: RodioProject | null) {
     filterImagesQuery,
     filter,
     setFilter,
-  };
-}
-
-function useLabelClasses(project: RodioProject | null) {
-  const classesQuery = useQuery({
-    queryKey: ["labelClasses"],
-    queryFn: async () => {
-      if (!project) return [];
-      let classes = await project.db.getClasses();
-      return classes;
-    },
-  });
-  const queryClient = useQueryClient();
-  useEffect(() => {
-    // React query focus does not work in tauri.
-    // We will use the tauri window focus event to refetch the images.
-    const unsub = appWindow.listen("tauri://focus", async () => {
-      console.log("Refetching images...");
-      queryClient.invalidateQueries({
-        queryKey: ["labelClasses"],
-      });
-    });
-    return () => {
-      unsub.then((u) => u());
-    };
-  }, [classesQuery.refetch, project?.projectPath]);
-  return {
-    classesQuery,
   };
 }
 

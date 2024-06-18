@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ColorPicker, colors } from "../ui/color-picker";
 import {
   Dialog,
@@ -29,6 +29,7 @@ import {
 import { LabelClass } from "@/lib/rodio-project";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { useSaveStore } from "@/stores/save-store";
+import { useLabelClasses } from "@/lib/use-label-classes";
 
 const schema = object({
   classes: array(
@@ -367,9 +368,8 @@ export function CreateOrEditClassModal({
 export function ClassList({ isPending }: { isPending?: boolean }) {
   const [createClassModalOpen, setCreateClassModalOpen] = useState(false);
   const currentProjectStore = useCurrentProjectStore(
-    ({ classesMap, project, selectedClass, selectClass, setClassesMap }) => {
+    ({ project, selectedClass, selectClass, setClassesMap }) => {
       return {
-        classesMap,
         project,
         selectedClass,
         selectClass,
@@ -390,18 +390,16 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
       setCreateClassModalOpen(false);
     },
   });
+  const { classesQuery } = useLabelClasses(currentProjectStore.project);
   const parentRef = useRef(null);
+  const classes = classesQuery.data ?? [];
 
   const rowVirtualizer = useVirtualizer({
-    count: currentProjectStore.classesMap.size,
+    count: classes.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 32, // h-8
     overscan: 5,
   });
-  const classes = useMemo(
-    () => Array.from(currentProjectStore.classesMap.values()),
-    [currentProjectStore.classesMap]
-  );
   const [deleteClassModalOpen, setDeleteClassModalOpen] =
     useState<LabelClass | null>(null);
 
