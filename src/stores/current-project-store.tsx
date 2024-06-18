@@ -18,7 +18,7 @@ export const useCurrentProjectStore: UseBoundStore<
     selectedImage: null | string;
     selectImage: (path: string) => void;
     selectedClass: null | LabelClassId;
-    selectClass: (className: LabelClassId) => void;
+    selectClass: (className: LabelClassId | null) => void;
     load: (path: string) => Promise<void>;
   }>
 > = create((set) => ({
@@ -35,7 +35,7 @@ export const useCurrentProjectStore: UseBoundStore<
     set({ selectedImage: path });
   },
   selectedClass: null,
-  selectClass(labelClass: LabelClassId) {
+  selectClass(labelClass: LabelClassId | null) {
     set({ selectedClass: labelClass });
   },
   async load(path: string) {
