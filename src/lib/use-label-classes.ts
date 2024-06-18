@@ -9,7 +9,6 @@ export function useLabelClasses(project: RodioProject | null) {
     queryKey: asClassesQK(project?.projectPath),
     queryFn: async () => {
       if (!project) return [];
-      await new Promise((resolve) => setTimeout(resolve, 5000));
       let classes = await project.db.getClasses();
       return classes;
     },

@@ -75,7 +75,6 @@ export function DeleteClassModal({
     mutationFn: async () => {
       if (currentProjectStore.project === null) return;
       if (labelClass === null) return;
-      await new Promise((resolve) => setTimeout(resolve, 5000));
       await currentProjectStore.project.db.deleteClass(labelClass.id);
     },
     onSuccess: () => {
