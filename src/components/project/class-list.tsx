@@ -32,6 +32,7 @@ import { useSaveStore } from "@/stores/save-store";
 import { useLabelClasses } from "@/lib/use-label-classes";
 import { asClassesQK } from "@/lib/query-keys";
 import { nanoid } from "nanoid";
+import { useHotkeys } from "react-hotkeys-hook";
 
 const schema = object({
   classes: array(
@@ -408,6 +409,23 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
   });
   const [deleteClassModalOpen, setDeleteClassModalOpen] =
     useState<LabelClass | null>(null);
+  useHotkeys(
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+    (e) => {
+      let parsedKey = parseInt(e.key, 10);
+      if (isNaN(parsedKey)) return;
+      if (parsedKey < 0 || parsedKey > 9) return;
+      if (parsedKey > classes.length) return;
+
+      if (parsedKey === 0) {
+        parsedKey = 10;
+      }
+      const cls = classes[parsedKey - 1];
+      if (!cls) return;
+      currentProjectStore.selectClass(cls.id);
+    },
+    [classes, currentProjectStore.selectedClass]
+  );
 
   return (
     <>
@@ -459,11 +477,11 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
               ))
             : rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const cls = classes[virtualRow.index];
+                const isSelected = cls.id === currentProjectStore.selectedClass;
                 return (
                   <li
                     key={virtualRow.key}
                     className="group px-1 cursor-pointer h-8 w-full"
-                    onMouseDown={() => currentProjectStore.selectClass(cls.id)}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -474,14 +492,18 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
                   >
                     <ContextMenu>
                       <ContextMenuTrigger>
-                        <div
+                        <Button
                           className={cn(
-                            "h-full flex flex-row items-center justify-between gap-2 p-1 transition ease-in-out duration-200",
+                            "w-full h-full flex flex-row items-center justify-between gap-2 p-1 transition ease-in-out duration-200",
                             {
                               "bg-primary text-gray-50 dark:text-gray-950 rounded-sm":
-                                cls.id === currentProjectStore.selectedClass,
+                                isSelected,
                             }
                           )}
+                          onClick={() =>
+                            currentProjectStore.selectClass(cls.id)
+                          }
+                          variant={isSelected ? "default" : "ghost"}
                         >
                           <div className="flex flex-row items-center gap-2">
                             <div
@@ -490,7 +512,17 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
                             />
                             <p>{cls.name}</p>
                           </div>
-                        </div>
+                          {virtualRow.index <= 8 && (
+                            <p
+                              className={cn("px-2", {
+                                "text-gray-400 dark:text-gray-600": isSelected,
+                                "text-gray-600 dark:text-gray-400": !isSelected,
+                              })}
+                            >
+                              {virtualRow.index + 1}
+                            </p>
+                          )}
+                        </Button>
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-64">
                         <ContextMenuItem

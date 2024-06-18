@@ -3,8 +3,6 @@ import { Stage, Layer } from "react-konva";
 import { cn, resolveError } from "@/lib/utils";
 import { NewLabelBox } from "./new-label-box";
 import { LabelBox } from "./label-box";
-import { useCurrentProjectStore } from "@/stores/current-project-store";
-import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { useImageContainer } from "./use-image-container";
 import { useSaveLabels } from "./use-save-labels";
 import { useLabelActions } from "./use-label-actions";
@@ -15,6 +13,7 @@ import { useMemo, useRef } from "react";
 import { type Stage as StageType } from "konva/lib/Stage";
 import { useLabelClasses } from "@/lib/use-label-classes";
 import { LabelClass, LabelClassId } from "@/lib/rodio-project";
+import { useCurrent } from "./use-current";
 
 export default function ImagePreview({
   currentPath,
@@ -25,31 +24,7 @@ export default function ImagePreview({
 }) {
   const { imageRef, imageContainerSize, updateContainerSize } =
     useImageContainer();
-  const currentProjectFileStore = useCurrentProjectFileStore(
-    ({
-      filePath: projectPath,
-      focusedLabel,
-      setFocusedLabel,
-      labels,
-      setLabels,
-    }) => {
-      return {
-        projectPath,
-        focusedLabel,
-        setFocusedLabel,
-        labels,
-        setLabels,
-      };
-    }
-  );
-  const currentProjectStore = useCurrentProjectStore(
-    ({ project, selectedClass }) => {
-      return {
-        project,
-        selectedClass,
-      };
-    }
-  );
+  const { currentProjectFileStore, currentProjectStore } = useCurrent();
   const { saveLabels } = useSaveLabels(
     currentProjectFileStore.projectPath,
     currentProjectStore.project
