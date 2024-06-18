@@ -258,7 +258,7 @@ export function ImageListFilterButton({
   project: RodioProject | null;
 }) {
   const { classesQuery } = useLabelClasses(project);
-  const hasNonSearchStringFilters = filter.classesWithLabel;
+  const hasNonSearchStringFilters = filter.labelFilterMode !== "all";
 
   let labelledWithClassesElement = null;
   if (classesQuery.isFetching) {
