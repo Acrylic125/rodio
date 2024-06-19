@@ -1,4 +1,4 @@
-import { cn, resolveError } from "@/lib/utils";
+import { resolveError } from "@/lib/utils";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -475,82 +475,80 @@ export function ImageList() {
         {imagePaths.length > 0 ? (
           rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const imageFile = imagePaths[virtualRow.index];
+            const isSelected =
+              imageFile.path === currentProjectStore.selectedImage;
             return (
               <li
                 key={virtualRow.key}
-                tabIndex={0}
-                className={cn(
-                  "flex flex-row justify-between items-center absolute top-0 left-0 h-8 p-1 cursor-pointer truncate w-full transition ease-in-out duration-200",
-                  {
-                    "text-gray-50 dark:text-gray-950 bg-primary rounded-sm":
-                      imageFile.path === currentProjectStore.selectedImage,
-                    "text-gray-700 dark:text-gray-300":
-                      imageFile.path !== currentProjectStore.selectedImage,
-                  }
-                )}
-                onClick={() => {
-                  currentProjectStore.selectImage(imageFile.path);
-                  if (currentProjectStore.project)
-                    currentProjectFileStore.load(
-                      currentProjectStore.project,
-                      imageFile.path
-                    );
-                }}
                 style={{
                   height: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
+                className="absolute w-full"
               >
-                <p className="flex-1 overflow-hidden overflow-ellipsis cursor-pointer">
-                  {imageFile.path.split("/").pop()}
-                </p>
-                <div
-                  className="w-fit flex flex-row"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                <Button
+                  className="flex flex-row justify-between items-center h-8 p-1 truncate w-full text-left"
+                  variant={isSelected ? "default" : "ghost"}
+                  onClick={() => {
+                    currentProjectStore.selectImage(imageFile.path);
+                    if (currentProjectStore.project)
+                      currentProjectFileStore.load(
+                        currentProjectStore.project,
+                        imageFile.path
+                      );
                   }}
                 >
-                  {isRodioImageTooLarge(imageFile) && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="bg-transparent p-1 aspect-square w-6 h-6 rounded-sm"
-                        >
-                          <TriangleAlertIcon className="text-yellow-500" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80">
-                        <div className="grid gap-4">
-                          <div className="space-y-2">
-                            <h4 className="font-medium leading-none">
-                              Image file is big! {"("}
-                              {stringifyBytes(imageFile.stat.size)}
-                              {")"}
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                              The image file is using up a lot of space.
-                              Consider shrinking it.
-                            </p>
-                          </div>
-                          <div className="flex flex-col gap2">
-                            <div>
-                              <Button
-                                variant="secondary"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setShrinkImagesFocused([imageFile]);
-                                }}
-                              >
-                                Shrink
-                              </Button>
+                  <p className="flex-1 overflow-hidden overflow-ellipsis cursor-pointer">
+                    {imageFile.path.split("/").pop()}
+                  </p>
+                  <div
+                    className="w-fit flex flex-row"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    {isRodioImageTooLarge(imageFile) && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className="bg-transparent p-1 aspect-square w-6 h-6 rounded-sm"
+                          >
+                            <TriangleAlertIcon className="text-yellow-500" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                          <div className="grid gap-4">
+                            <div className="space-y-2">
+                              <h4 className="font-medium leading-none">
+                                Image file is big! {"("}
+                                {stringifyBytes(imageFile.stat.size)}
+                                {")"}
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                The image file is using up a lot of space.
+                                Consider shrinking it.
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap2">
+                              <div>
+                                <Button
+                                  variant="secondary"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setShrinkImagesFocused([imageFile]);
+                                  }}
+                                >
+                                  Shrink
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
+                </Button>
               </li>
             );
           })
