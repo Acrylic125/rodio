@@ -5,7 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { Check, FilterIcon, TriangleAlertIcon } from "lucide-react";
+import { Check, FilterIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { appWindow } from "@tauri-apps/api/window";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { useDebounce } from "@uidotdev/usehooks";
@@ -626,7 +626,23 @@ export function ImageList() {
         images={shrinkImagesFocused}
       />
       <div className="flex flex-col gap-2 w-full border-b border-gray-300 dark:border-gray-700 top-0 p-3">
-        <h2 className="text-gray-500 font-medium">FILES</h2>
+        <div className="flex flex-row justify-between">
+          <h2 className="text-gray-500 font-medium">FILES</h2>
+          {selectedImages.size > 0 && (
+            <div className="flex flex-row gap-1">
+              <p>{selectedImages.size} Selected</p>
+              <Button
+                variant="ghost"
+                className="h-6 w-6 p-0.5"
+                onClick={() => {
+                  setSelectedImages(new Set());
+                }}
+              >
+                <XIcon />
+              </Button>
+            </div>
+          )}
+        </div>
         <div className="flex flex-row gap-2">
           <Input
             placeholder="Search"
