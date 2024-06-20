@@ -98,35 +98,7 @@ export function LabelList({ isPending }: { isPending?: boolean }) {
                         }}
                       />
                       <span className="flex flex-row gap-2">
-                        <p
-                          className={cn({
-                            "text-gray-950 dark:text-gray-50": !isSelected,
-                            "text-gray-50 dark:text-gray-950": isSelected,
-                          })}
-                        >
-                          {"("}
-                          {label.start.x.toFixed(2)}, {label.start.y.toFixed(2)}
-                          {")"}
-                        </p>
-                        <p
-                          className={cn({
-                            "text-gray-700 dark:text-gray-300": !isSelected,
-                            "text-gray-300 dark:text-gray-700": isSelected,
-                          })}
-                        >
-                          {" "}
-                          to{" "}
-                        </p>
-                        <p
-                          className={cn({
-                            "text-gray-950 dark:text-gray-50": !isSelected,
-                            "text-gray-50 dark:text-gray-950": isSelected,
-                          })}
-                        >
-                          {"("}
-                          {label.end.x.toFixed(2)}, {label.end.y.toFixed(2)}
-                          {")"}
-                        </p>
+                        {classesMap.get(label.class)?.name ?? "Unknown"}
                       </span>
                     </Button>
                   </li>

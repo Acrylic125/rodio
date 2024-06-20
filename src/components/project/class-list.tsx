@@ -494,11 +494,7 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
                       <ContextMenuTrigger>
                         <Button
                           className={cn(
-                            "w-full h-full flex flex-row items-center justify-between gap-2 p-1 transition ease-in-out duration-200",
-                            {
-                              "bg-primary text-gray-50 dark:text-gray-950 rounded-sm":
-                                isSelected,
-                            }
+                            "w-full h-full flex flex-row items-center justify-between gap-2 p-1 transition ease-in-out duration-200"
                           )}
                           onClick={() => {
                             if (isSelected) {
@@ -519,7 +515,7 @@ export function ClassList({ isPending }: { isPending?: boolean }) {
                           {virtualRow.index <= 8 && (
                             <p
                               className={cn("px-2", {
-                                "text-gray-400 dark:text-gray-600": isSelected,
+                                "text-gray-800 dark:text-gray-200": isSelected,
                                 "text-gray-600 dark:text-gray-400": !isSelected,
                               })}
                             >

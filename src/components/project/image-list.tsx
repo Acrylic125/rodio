@@ -1,4 +1,4 @@
-import { resolveError } from "@/lib/utils";
+import { cn, resolveError } from "@/lib/utils";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -442,6 +442,7 @@ export function ImageList() {
   const [shrinkImagesFocused, setShrinkImagesFocused] = useState<RodioImage[]>(
     []
   );
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
 
   let contentElement = null;
   if (filterImagesQuery.isFetching) {
@@ -475,8 +476,20 @@ export function ImageList() {
         {imagePaths.length > 0 ? (
           rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const imageFile = imagePaths[virtualRow.index];
-            const isSelected =
-              imageFile.path === currentProjectStore.selectedImage;
+            // const isSelected = ;
+
+            let variant;
+            if (currentProjectStore.selectedImage === imageFile.path) {
+              variant = "default" as const;
+              if (!selectedImages.has(imageFile.path)) {
+                variant = "outline" as const;
+              }
+            } else if (selectedImages.has(imageFile.path)) {
+              variant = "secondary" as const;
+            } else {
+              variant = "ghost" as const;
+            }
+
             return (
               <li
                 key={virtualRow.key}
@@ -487,15 +500,59 @@ export function ImageList() {
                 className="absolute w-full"
               >
                 <Button
-                  className="flex flex-row justify-between items-center h-8 p-1 truncate w-full text-left"
-                  variant={isSelected ? "default" : "ghost"}
-                  onClick={() => {
-                    currentProjectStore.selectImage(imageFile.path);
-                    if (currentProjectStore.project)
-                      currentProjectFileStore.load(
-                        currentProjectStore.project,
-                        imageFile.path
+                  className={cn(
+                    "flex flex-row justify-between items-center h-8 p-1 truncate w-full text-left",
+                    {
+                      "border-primary border-2": variant === "outline",
+                    }
+                  )}
+                  variant={variant}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                      setSelectedImages((selectedImages) => {
+                        const newSet = new Set(selectedImages);
+                        if (newSet.has(imageFile.path)) {
+                          newSet.delete(imageFile.path);
+                        } else {
+                          newSet.add(imageFile.path);
+                        }
+                        return newSet;
+                      });
+                    } else if (e.shiftKey) {
+                      let currentSelectedIndex = imagePaths.findIndex(
+                        (image) =>
+                          image.path === currentProjectStore.selectedImage
                       );
+                      if (currentSelectedIndex === -1) {
+                        currentSelectedIndex = 0;
+                      }
+                      const clickedIndex = imagePaths.findIndex(
+                        (image) => image.path === imageFile.path
+                      );
+                      const newSelectedImages = new Set<string>();
+                      if (currentSelectedIndex !== -1) {
+                        const minIndex = Math.min(
+                          currentSelectedIndex,
+                          clickedIndex
+                        );
+                        const maxIndex = Math.max(
+                          currentSelectedIndex,
+                          clickedIndex
+                        );
+                        for (let i = minIndex; i <= maxIndex; i++) {
+                          newSelectedImages.add(imagePaths[i].path);
+                        }
+                      }
+                      setSelectedImages(newSelectedImages);
+                    } else {
+                      setSelectedImages(new Set([imageFile.path]));
+                      currentProjectStore.selectImage(imageFile.path);
+                      if (currentProjectStore.project)
+                        currentProjectFileStore.load(
+                          currentProjectStore.project,
+                          imageFile.path
+                        );
+                    }
                   }}
                 >
                   <p className="flex-1 overflow-hidden overflow-ellipsis cursor-pointer">
