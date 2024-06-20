@@ -6,7 +6,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLabelClasses } from "@/lib/use-label-classes";
 import { LabelClass, LabelClassId } from "@/lib/rodio-project";
 import { Button } from "../ui/button";
-import { cn } from "@/lib/utils";
 
 export function LabelList({ isPending }: { isPending?: boolean }) {
   const currentProjectStore = useCurrentProjectStore(({ project }) => {
