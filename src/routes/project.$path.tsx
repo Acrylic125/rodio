@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import ImagePreview from "@/components/project/image-preview";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
-import { ImageList } from "@/components/project/image-list";
+import { ImageList } from "@/components/project/image-list/image-list";
 import { LabelList } from "@/components/project/label-list";
 import { ClassList } from "@/components/project/class-list";
 import { ExportModal } from "@/components/project/export/export-modal";
