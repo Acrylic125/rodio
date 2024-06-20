@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useBreakpoint } from "@/lib/use-breakpoint";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
@@ -12,15 +12,19 @@ import { SaveEventManager } from "../use-save-labels";
 import { useImageContainer } from "../use-image-container";
 import { Group, Layer, Rect, Stage } from "react-konva";
 import { Loader2 } from "lucide-react";
+import { LabelClass, LabelClassId } from "@/lib/rodio-project";
+import { useLabelClasses } from "@/lib/use-label-classes";
 
 function DatasetGridItem({
   imagePath,
   cacheDir,
   type,
+  classesMap,
 }: {
   imagePath: string;
   cacheDir: string;
   type?: ExportDistributionType;
+  classesMap: Map<LabelClassId, LabelClass>;
 }) {
   const {
     imageRef: ref,
@@ -28,14 +32,11 @@ function DatasetGridItem({
     updateContainerSize,
   } = useImageContainer();
   const img = useOptimisedImage(ref, imagePath, cacheDir, "dataset-grid");
-  const currentProjectStore = useCurrentProjectStore(
-    ({ project, classesMap }) => {
-      return {
-        project,
-        classesMap,
-      };
-    }
-  );
+  const currentProjectStore = useCurrentProjectStore(({ project }) => {
+    return {
+      project,
+    };
+  });
   const queryClient = useQueryClient();
   const labelsQuery = useQuery({
     queryKey: ["labels", currentProjectStore.project?.projectPath, imagePath],
@@ -100,9 +101,7 @@ function DatasetGridItem({
         >
           <Layer>
             {labels.map((label) => {
-              const color =
-                currentProjectStore.classesMap.get(label.class)?.color ??
-                "#000000";
+              const color = classesMap.get(label.class)?.color ?? "#000000";
               const x = label.start.x * imageContainerSize.width;
               const y = label.start.y * imageContainerSize.height;
               const width =
@@ -209,6 +208,16 @@ export function DatasetGrid({
     overscan: 2,
   });
   const items = rowVirtualizer.getVirtualItems();
+  const currentProjectStore = useCurrentProjectStore(({ project }) => ({
+    project,
+  }));
+  const { classesQuery } = useLabelClasses(currentProjectStore.project);
+  const classesMap = useMemo(() => {
+    if (!classesQuery.data) {
+      return new Map();
+    }
+    return new Map(classesQuery.data.map((cls) => [cls.id, cls]));
+  }, [classesQuery.data]);
 
   return (
     <div ref={parentRef} className="w-full h-96 overflow-auto">
@@ -251,6 +260,7 @@ export function DatasetGrid({
                         imagePath={imagePath}
                         cacheDir={cacheDir}
                         type={exportType}
+                        classesMap={classesMap}
                       />
                     </div>
                   );
