@@ -1,4 +1,4 @@
-import { Pos } from "./label-anchors";
+import { Pos, dynLabelborderWidth } from "./label-anchors";
 import { ResizableRect } from "./resizable-rect";
 import { Rect, Group } from "react-konva";
 
@@ -17,6 +17,7 @@ export function NewLabelBox({
   const y = Math.min(pos1.y, pos2.y) * containerDimensions.height;
   const width = Math.abs(pos2.x - pos1.x) * containerDimensions.width;
   const height = Math.abs(pos2.y - pos1.y) * containerDimensions.height;
+  const size = Math.min(width, height);
 
   return (
     <Group>
@@ -28,9 +29,7 @@ export function NewLabelBox({
           height={height}
           fill={`${color}4f`}
           stroke={color}
-          // fill="#ff00004f"
-          // stroke="#ff0000"
-          strokeWidth={4}
+          strokeWidth={dynLabelborderWidth(size)}
         />
       </ResizableRect>
     </Group>

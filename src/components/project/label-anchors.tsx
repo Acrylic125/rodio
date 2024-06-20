@@ -1,6 +1,34 @@
+import { clamp } from "@/lib/utils";
+
 export type Pos = { x: number; y: number };
+export const dynDesiredSize = 64;
 export const labelAnchorSize = 12;
+
+export function dynLabelAnchorSize(size: number) {
+  const dynSizeScaling = clamp(size / dynDesiredSize, 0.25, 1);
+  let v = Math.round(labelAnchorSize * dynSizeScaling);
+  if (v % 2 === 0) {
+    v += 1;
+  }
+  return v;
+}
+
+export const labelBorderWidth = 4;
+
+export function dynLabelborderWidth(size: number) {
+  const dynSizeScaling = clamp(size / dynDesiredSize, 0, 1);
+  let v = Math.floor(labelBorderWidth * dynSizeScaling);
+  return v;
+}
+
 export const borderSelectedWidth = 2;
+
+export function dynLabelSelectedBorder(size: number) {
+  const dynSizeScaling = clamp(size / dynDesiredSize, 0, 1);
+  let v = Math.floor(borderSelectedWidth * dynSizeScaling);
+  return v;
+}
+
 /**
  * [-1, -1] [0, -1] [1, -1]
  * [-1, 0]         [1, 0]

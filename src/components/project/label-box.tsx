@@ -1,5 +1,10 @@
 import { type Rect as RectType } from "konva/lib/shapes/Rect";
-import { Pos, labelAnchorSize, labelBoxAnchors } from "./label-anchors";
+import {
+  Pos,
+  dynLabelAnchorSize,
+  dynLabelborderWidth,
+  labelBoxAnchors,
+} from "./label-anchors";
 import { clamp } from "@/lib/utils";
 import { KonvaEventObject } from "konva/lib/Node";
 import { useCallback, useRef, useState } from "react";
@@ -79,6 +84,7 @@ export function LabelBox({
   const y = startPos.y * containerDimensions.height;
   const width = Math.abs(endPos.x - startPos.x) * containerDimensions.width;
   const height = Math.abs(endPos.y - startPos.y) * containerDimensions.height;
+  const size = Math.min(width, height);
 
   return (
     <Group onTap={_onRequestSelect} onMouseDown={_onRequestSelect}>
@@ -109,6 +115,7 @@ export function LabelBox({
         }}
         onAnchorDragMove={(e, anchor) => {
           if (!initialResizePositions.current) return;
+          let labelAnchorSize = dynLabelAnchorSize(size);
           const anchorOffset = labelAnchorSize / 2;
           const pos = e.target.position();
 
@@ -154,7 +161,7 @@ export function LabelBox({
           height={height}
           fill={`${color}4f`}
           stroke={color}
-          strokeWidth={4}
+          strokeWidth={dynLabelborderWidth(size)}
           draggable
           ref={ref}
           onMouseEnter={() => {

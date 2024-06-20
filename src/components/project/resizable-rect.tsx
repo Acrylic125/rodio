@@ -1,8 +1,8 @@
 import { KonvaEventObject } from "konva/lib/Node";
 import {
-  borderSelectedWidth,
-  labelAnchorSize,
   labelBoxAnchors,
+  dynLabelAnchorSize,
+  dynLabelSelectedBorder,
 } from "./label-anchors";
 import { Rect } from "react-konva";
 
@@ -48,6 +48,7 @@ export function ResizableRect({
   ) => void;
   children: React.ReactNode;
 }) {
+  const borderSelectedWidth = dynLabelSelectedBorder(Math.min(width, height));
   return (
     <>
       {isSelected && (
@@ -63,6 +64,9 @@ export function ResizableRect({
       {children}
       {isSelected &&
         labelBoxAnchors.map((anchor) => {
+          const size = Math.min(width, height);
+          let labelAnchorSize = dynLabelAnchorSize(size);
+
           const anchorOffset = labelAnchorSize / 2;
           let anchorX = x + width / 2 - anchorOffset;
           let anchorY = y + height / 2 - anchorOffset;
@@ -97,17 +101,9 @@ export function ResizableRect({
               draggable
               onMouseEnter={(e) => {
                 onAnchorMouseEnter?.(e, anchor);
-                // const stage = e.target.getStage();
-                // if (!stage) return;
-                // const container = stage.container();
-                // container.style.cursor = anchor.cursor;
               }}
               onMouseLeave={(e) => {
                 onAnchorMouseLeave?.(e, anchor);
-                // const stage = e.target.getStage();
-                // if (!stage) return;
-                // const container = stage.container();
-                // container.style.cursor = "default";
               }}
               onDragStart={(e) => {
                 onAnchorDragStart?.(e, anchor);
