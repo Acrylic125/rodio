@@ -42,6 +42,14 @@ export function ImageList() {
   }, [setMassSelectImages]);
   const onFilterImageQueryComplete = useCallback(
     (allImages: RodioImage[]) => {
+      const selectedImage = useCurrentProjectStore.getState().selectedImage;
+      if (selectedImage !== null) {
+        if (
+          allImages.findIndex((image) => image.path === selectedImage) === -1
+        ) {
+          currentProjectStore.selectImage(null);
+        }
+      }
       setSelectedImages((selectedImages) => {
         const availableImages = new Set(allImages.map((image) => image.path));
         return new Set(
@@ -49,7 +57,7 @@ export function ImageList() {
         );
       });
     },
-    [setSelectedImages]
+    [setSelectedImages, currentProjectStore.selectImage]
   );
   const { filterImagesQuery, filter, setFilter } = useImageList(
     currentProjectStore.project,

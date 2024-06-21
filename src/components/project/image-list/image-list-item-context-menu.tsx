@@ -68,7 +68,7 @@ export function DeleteImagesModal({
         failedFiles,
       };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({
         predicate: (query) => {
           return isKeyStartingWith(
@@ -77,6 +77,9 @@ export function DeleteImagesModal({
           );
         },
       });
+      if (res?.failedFiles.length === 0) {
+        setIsOpen(false);
+      }
     },
   });
 

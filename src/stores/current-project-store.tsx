@@ -16,7 +16,7 @@ export const useCurrentProjectStore: UseBoundStore<
     images: RodioImage[];
     setImages: (images: RodioImage[]) => void;
     selectedImage: null | string;
-    selectImage: (path: string) => void;
+    selectImage: (path: string | null) => void;
     selectedClass: null | LabelClassId;
     selectClass: (className: LabelClassId | null) => void;
     load: (path: string) => Promise<void>;
@@ -31,7 +31,7 @@ export const useCurrentProjectStore: UseBoundStore<
     set({ images });
   },
   selectedImage: null,
-  selectImage(path: string) {
+  selectImage(path: string | null) {
     set({ selectedImage: path });
   },
   selectedClass: null,
