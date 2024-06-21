@@ -44,7 +44,7 @@ export function ImageListFilterButton({
               <Button
                 className="w-full flex flex-row px-2 py-2 gap-1 text-left justify-start h-fit"
                 variant="ghost"
-                disabled={filter.labelFilterMode === "all"}
+                disabled={filter.labelFilterMode !== "includeClass"}
                 onClick={() => {
                   setFilter((filter) => {
                     const newFilter = { ...filter };

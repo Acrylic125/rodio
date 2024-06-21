@@ -13,6 +13,10 @@ export const LabelFilterModes = [
     label: "All",
   },
   {
+    type: "noLabel",
+    label: "No Labels",
+  },
+  {
     type: "includeClass",
     label: "Include Class",
   },
@@ -82,6 +86,11 @@ export function useImageList(
           }
         );
         images = fuse.search(filter.searchString).map((result) => result.item);
+      }
+      if (filter.labelFilterMode === "noLabel") {
+        const imagesWithLabels = await project.db.getImagesWithLabels();
+        const imagesWithLabelsSet = new Set(imagesWithLabels);
+        images = images.filter((image) => !imagesWithLabelsSet.has(image.path));
       }
       if (filter.labelFilterMode === "includeClass") {
         const imagesWithLabelClass = await project.db.getImagesWithLabelClass(
