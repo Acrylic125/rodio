@@ -211,6 +211,19 @@ export class RodioProjectDB implements RodioProjectFile {
     );
   }
 
+  public async deleteLabelsForPaths(imagePaths: string[]) {
+    let sql = ``;
+    const params: any[] = [];
+    for (const imagePath of imagePaths) {
+      let lastParamIndex = params.length; // 1-indexed.
+      sql += `DELETE FROM labels WHERE path = $${lastParamIndex + 1};`;
+      params.push(imagePath);
+    }
+
+    const db = await this.db();
+    db.execute(sql, params);
+  }
+
   public async deleteLabel(labelId: LabelId) {
     const db = await this.db();
     return db.execute(`DELETE FROM labels WHERE id = $1;`, [labelId]);

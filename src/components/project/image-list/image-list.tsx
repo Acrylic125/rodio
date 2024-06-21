@@ -2,18 +2,21 @@ import { cn, resolveError } from "@/lib/utils";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { useCurrentProjectFileStore } from "@/stores/current-project-file-store";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { TriangleAlertIcon, XIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
-import { RodioImage, isRodioImageTooLarge } from "@/lib/rodio-project";
+import { isRodioImageTooLarge } from "@/lib/rodio-project";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Skeleton } from "../../ui/skeleton";
 import { useImageList } from "./use-image-list";
 import { ImageListFilterButton } from "./image-list-filter-button";
-import { ShrinkImageModal, stringifyBytes } from "./shrink-image-modal";
-import { ImageListItemContextMenu } from "./image-list-item-context-menu";
+import { stringifyBytes } from "./shrink-image-modal";
+import {
+  DeleteImagesModal,
+  ImageListItemContextMenu,
+} from "./image-list-item-context-menu";
 
 export function ImageList() {
   const currentProjectStore = useCurrentProjectStore((state) => {
@@ -28,8 +31,17 @@ export function ImageList() {
       load: state.load,
     };
   });
+  const [massSelectImages, setMassSelectImages] = useState<{
+    start: string;
+    end: string;
+  } | null>(null);
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const onFilter = useCallback(() => {
+    setMassSelectImages(null);
+  }, [setMassSelectImages]);
   const { filterImagesQuery, filter, setFilter } = useImageList(
-    currentProjectStore.project
+    currentProjectStore.project,
+    { onFilter }
   );
   const imagePaths = filterImagesQuery.isFetching
     ? []
@@ -76,10 +88,7 @@ export function ImageList() {
     if (currentProjectStore.project)
       currentProjectFileStore.load(currentProjectStore.project, imagePath);
   });
-  const [shrinkImagesFocused, setShrinkImagesFocused] = useState<RodioImage[]>(
-    []
-  );
-  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [modal, setModal] = useState<"shrink" | "delete" | null>(null);
 
   let contentElement = null;
   if (filterImagesQuery.isFetching) {
@@ -139,6 +148,9 @@ export function ImageList() {
                   imageFile={imageFile}
                   selectedImages={selectedImages}
                   setSelectedImages={setSelectedImages}
+                  onRequestDelete={() => {
+                    setModal("delete");
+                  }}
                 >
                   <Button
                     className={cn(
@@ -159,34 +171,60 @@ export function ImageList() {
                           }
                           return newSet;
                         });
+                        setMassSelectImages({
+                          start: imageFile.path,
+                          end: imageFile.path,
+                        });
                       } else if (e.shiftKey) {
-                        let currentSelectedIndex = imagePaths.findIndex(
-                          (image) =>
-                            image.path === currentProjectStore.selectedImage
+                        let startIndex = imagePaths.findIndex(
+                          (image) => image.path === massSelectImages?.start
                         );
-                        if (currentSelectedIndex === -1) {
-                          currentSelectedIndex = 0;
+                        if (startIndex === -1) {
+                          startIndex = 0;
                         }
+
+                        const newSelectedImages = new Set<string>(
+                          selectedImages
+                        );
+                        if (massSelectImages?.end !== undefined) {
+                          let lastEndIndex = imagePaths.findIndex(
+                            (image) => image.path === massSelectImages.end
+                          );
+                          // Unset old selection
+                          if (lastEndIndex !== -1) {
+                            const minIndex = Math.min(startIndex, lastEndIndex);
+                            const maxIndex = Math.max(startIndex, lastEndIndex);
+
+                            if (minIndex >= 0 && maxIndex < imagePaths.length) {
+                              for (let i = minIndex; i <= maxIndex; i++) {
+                                console.log(imagePaths[i].path);
+                                newSelectedImages.delete(imagePaths[i].path);
+                              }
+                            }
+                          }
+                        }
+
                         const clickedIndex = imagePaths.findIndex(
                           (image) => image.path === imageFile.path
                         );
-                        const newSelectedImages = new Set<string>();
-                        if (currentSelectedIndex !== -1) {
-                          const minIndex = Math.min(
-                            currentSelectedIndex,
-                            clickedIndex
-                          );
-                          const maxIndex = Math.max(
-                            currentSelectedIndex,
-                            clickedIndex
-                          );
+                        if (startIndex !== -1) {
+                          const minIndex = Math.min(startIndex, clickedIndex);
+                          const maxIndex = Math.max(startIndex, clickedIndex);
                           for (let i = minIndex; i <= maxIndex; i++) {
                             newSelectedImages.add(imagePaths[i].path);
                           }
+                          setMassSelectImages({
+                            start: imagePaths[startIndex].path,
+                            end: imagePaths[clickedIndex].path,
+                          });
                         }
                         setSelectedImages(newSelectedImages);
                       } else {
                         setSelectedImages(new Set([imageFile.path]));
+                        setMassSelectImages({
+                          start: imageFile.path,
+                          end: imageFile.path,
+                        });
                         currentProjectStore.selectImage(imageFile.path);
                         if (currentProjectStore.project)
                           currentProjectFileStore.load(
@@ -234,7 +272,7 @@ export function ImageList() {
                                     variant="secondary"
                                     onClick={(e) => {
                                       e.preventDefault();
-                                      setShrinkImagesFocused([imageFile]);
+                                      setModal("shrink");
                                     }}
                                   >
                                     Shrink
@@ -262,11 +300,16 @@ export function ImageList() {
 
   return (
     <>
-      <ShrinkImageModal
-        isOpen={shrinkImagesFocused.length > 0}
-        setIsOpen={() => setShrinkImagesFocused([])}
-        images={shrinkImagesFocused}
+      <DeleteImagesModal
+        isOpen={modal === "delete"}
+        setIsOpen={(isOpen) => setModal(isOpen ? "delete" : null)}
+        images={selectedImages}
       />
+      {/* <ShrinkImageModal
+        isOpen={modal === "shrink"}
+        setIsOpen={(isOpen) => setModal(isOpen ? "shrink" : null)}
+        images={selectedImages}
+      /> */}
       <div className="flex flex-col gap-2 w-full border-b border-gray-300 dark:border-gray-700 top-0 p-3">
         <div className="flex flex-row justify-between gap-2">
           <h2 className="text-gray-500 font-medium">FILES</h2>

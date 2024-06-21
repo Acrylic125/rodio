@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { appWindow } from "@tauri-apps/api/window";
 import { useDebounce } from "@uidotdev/usehooks";
 import { LabelClassId, RodioProject } from "@/lib/rodio-project";
@@ -28,12 +28,24 @@ function serializeFilter(filter: ImageListFilter) {
   return `${filter.searchString}:${filter.labelFilterMode}:${Array.from(filter.classesWithLabel)}`;
 }
 
-export function useImageList(project: RodioProject | null) {
-  const [filter, setFilter] = useState<ImageListFilter>({
+export function useImageList(
+  project: RodioProject | null,
+  options: {
+    onFilter?: (filter: ImageListFilter) => void;
+  }
+) {
+  const [filter, _setFilter] = useState<ImageListFilter>({
     searchString: "",
     labelFilterMode: "all",
     classesWithLabel: new Set(),
   });
+  const setFilter = useCallback(
+    (filter: ImageListFilter) => {
+      _setFilter(filter);
+      options.onFilter?.(filter);
+    },
+    [_setFilter]
+  );
   const debouncedFilter = useDebounce(filter, 500);
   const filterImagesQuery = useQuery({
     queryKey: [
