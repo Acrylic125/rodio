@@ -44,9 +44,17 @@ export function useImageList(
     classesWithLabel: new Set(),
   });
   const setFilter = useCallback(
-    (filter: ImageListFilter) => {
-      _setFilter(filter);
-      options.onFilter?.(filter);
+    (filter: ImageListFilter | ((old: ImageListFilter) => ImageListFilter)) => {
+      if (typeof filter === "function") {
+        _setFilter((old) => {
+          const newFilter = filter(old);
+          options.onFilter?.(newFilter);
+          return newFilter;
+        });
+      } else {
+        _setFilter(filter);
+        options.onFilter?.(filter);
+      }
     },
     [_setFilter]
   );
