@@ -1,4 +1,4 @@
-import { LabelClassId, RodioImage, RodioProject } from "@/lib/rodio-project";
+import { LabelClassId, RodioProject } from "@/lib/rodio-project";
 import { resolveError } from "@/lib/utils";
 import { StoreApi, UseBoundStore, create } from "zustand";
 
@@ -13,8 +13,6 @@ export const useCurrentProjectStore: UseBoundStore<
           state: "error";
           message: string;
         };
-    images: RodioImage[];
-    setImages: (images: RodioImage[]) => void;
     selectedImage: null | string;
     selectImage: (path: string | null) => void;
     selectedClass: null | LabelClassId;
@@ -25,10 +23,6 @@ export const useCurrentProjectStore: UseBoundStore<
   project: null,
   loadStatus: {
     state: "idle",
-  },
-  images: [],
-  setImages(images: RodioImage[]) {
-    set({ images });
   },
   selectedImage: null,
   selectImage(path: string | null) {
@@ -47,10 +41,8 @@ export const useCurrentProjectStore: UseBoundStore<
     try {
       const project = new RodioProject(path);
       await project.load();
-      const images = await project.images.getImages(project.projectPath);
       set({
         project,
-        images,
         loadStatus: { state: "success" },
       });
     } catch (error) {

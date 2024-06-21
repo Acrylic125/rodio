@@ -1,25 +1,27 @@
+import { asImagesQK } from "@/lib/query-keys";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
 import { useQuery } from "@tanstack/react-query";
 
 export function useExportImages(options: { onlyExportLabelled: boolean }) {
-  const currentProjectStore = useCurrentProjectStore(({ images, project }) => {
+  const currentProjectStore = useCurrentProjectStore(({ project }) => {
     return {
-      images,
       project,
     };
   });
   return useQuery({
-    queryKey: [
-      "export-images",
+    queryKey: asImagesQK(
       currentProjectStore.project?.projectPath,
-      options.onlyExportLabelled,
-    ],
+      options.onlyExportLabelled ? "export-labelled" : "export-all"
+    ),
     enabled: currentProjectStore.project !== null,
     queryFn: async () => {
       if (currentProjectStore.project === null) {
         return [];
       }
-      const images = currentProjectStore.images.map((image) => image.path);
+      const _images = await currentProjectStore.project.images.getImages(
+        currentProjectStore.project.projectPath
+      );
+      const images = _images.map((image) => image.path);
       if (!options.onlyExportLabelled) {
         return images;
       }
