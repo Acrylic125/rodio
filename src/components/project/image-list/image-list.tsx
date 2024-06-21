@@ -7,7 +7,7 @@ import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { TriangleAlertIcon, XIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
-import { isRodioImageTooLarge } from "@/lib/rodio-project";
+import { RodioImage, isRodioImageTooLarge } from "@/lib/rodio-project";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Skeleton } from "../../ui/skeleton";
 import { useImageList } from "./use-image-list";
@@ -17,6 +17,7 @@ import {
   DeleteImagesModal,
   ImageListItemContextMenu,
 } from "./image-list-item-context-menu";
+import { nanoid } from "nanoid";
 
 export function ImageList() {
   const currentProjectStore = useCurrentProjectStore((state) => {
@@ -39,9 +40,20 @@ export function ImageList() {
   const onFilter = useCallback(() => {
     setMassSelectImages(null);
   }, [setMassSelectImages]);
+  const onFilterImageQueryComplete = useCallback(
+    (allImages: RodioImage[]) => {
+      setSelectedImages((selectedImages) => {
+        const availableImages = new Set(allImages.map((image) => image.path));
+        return new Set(
+          Array.from(selectedImages).filter((path) => availableImages.has(path))
+        );
+      });
+    },
+    [setSelectedImages]
+  );
   const { filterImagesQuery, filter, setFilter } = useImageList(
     currentProjectStore.project,
-    { onFilter }
+    { onFilter, onFilterImageQueryComplete }
   );
   const imagePaths = filterImagesQuery.isFetching
     ? []
@@ -88,7 +100,10 @@ export function ImageList() {
     if (currentProjectStore.project)
       currentProjectFileStore.load(currentProjectStore.project, imagePath);
   });
-  const [modal, setModal] = useState<"shrink" | "delete" | null>(null);
+  const [modal, setModal] = useState<{
+    type: "shrink" | "delete";
+    id: string;
+  } | null>(null);
 
   let contentElement = null;
   if (filterImagesQuery.isFetching) {
@@ -149,7 +164,10 @@ export function ImageList() {
                   selectedImages={selectedImages}
                   setSelectedImages={setSelectedImages}
                   onRequestDelete={() => {
-                    setModal("delete");
+                    setModal({
+                      type: "delete",
+                      id: nanoid(12),
+                    });
                   }}
                 >
                   <Button
@@ -272,7 +290,10 @@ export function ImageList() {
                                     variant="secondary"
                                     onClick={(e) => {
                                       e.preventDefault();
-                                      setModal("shrink");
+                                      setModal({
+                                        type: "shrink",
+                                        id: nanoid(12),
+                                      });
                                     }}
                                   >
                                     Shrink
@@ -301,8 +322,18 @@ export function ImageList() {
   return (
     <>
       <DeleteImagesModal
-        isOpen={modal === "delete"}
-        setIsOpen={(isOpen) => setModal(isOpen ? "delete" : null)}
+        key={modal?.id}
+        isOpen={modal?.type === "delete"}
+        setIsOpen={(isOpen) =>
+          setModal(
+            isOpen
+              ? {
+                  type: "delete",
+                  id: modal?.id ?? nanoid(12),
+                }
+              : null
+          )
+        }
         images={selectedImages}
       />
       {/* <ShrinkImageModal

@@ -2,7 +2,11 @@ import { QueryKey } from "@tanstack/react-query";
 
 export type PartialQueryKey = string | string[];
 
-export const ImagesQueryKey = "images" satisfies PartialQueryKey;
+export function asImagesQK(projectPath?: string | null, filter?: string) {
+  if (filter === undefined)
+    return ["images", projectPath ?? ""] satisfies PartialQueryKey;
+  return ["images", projectPath ?? "", filter ?? ""] satisfies PartialQueryKey;
+}
 
 export function asClassesQK(projectPath?: string | null) {
   return ["classes", projectPath ?? ""] satisfies PartialQueryKey;

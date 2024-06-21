@@ -15,9 +15,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { DialogDescription } from "@radix-ui/react-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentProjectStore } from "@/stores/current-project-store";
-import { removeFile } from "@tauri-apps/api/fs";
+import { exists, removeFile } from "@tauri-apps/api/fs";
+import { asImagesQK, isKeyStartingWith } from "@/lib/query-keys";
 
 export function DeleteImagesModal({
   isOpen,
@@ -31,15 +32,18 @@ export function DeleteImagesModal({
   const currentProjectStore = useCurrentProjectStore(({ project }) => {
     return { project };
   });
+  const queryClient = useQueryClient();
   const deleteMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (images: string[]) => {
       if (currentProjectStore.project === null) return;
 
       let imagePaths = Array.from(images);
       const removeFilesPromise = await Promise.allSettled(
         imagePaths.map((imagePath) => {
           return (async () => {
-            await removeFile(imagePath);
+            if (await exists(imagePath)) {
+              await removeFile(imagePath);
+            }
             return imagePath;
           })();
         })
@@ -53,40 +57,125 @@ export function DeleteImagesModal({
         })
         .filter((path) => path !== null) as string[];
 
-      await currentProjectStore.project.db.deleteLabelsForPaths([...images]);
+      const removedFilesSet = new Set(removedFiles);
+      const failedFiles = imagePaths.filter(
+        (path) => !removedFilesSet.has(path)
+      );
+
+      await currentProjectStore.project.db.deleteLabelsForPaths(removedFiles);
+      return {
+        removedFiles,
+        failedFiles,
+      };
     },
-    onSuccess: () => {},
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          return isKeyStartingWith(
+            query.queryKey,
+            asImagesQK(currentProjectStore.project?.projectPath)
+          );
+        },
+      });
+    },
   });
+
+  const deleteMutData = deleteMut.data;
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="w-full max-w-xl md:max-w-2xl lg:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Delete Images</DialogTitle>
-          <DialogDescription className="flex flex-row items-center gap-1">
-            Are you sure you want to delete {images.size} images?{" "}
-          </DialogDescription>
-        </DialogHeader>
+      {deleteMutData ? (
+        <DialogContent className="w-full max-w-xl md:max-w-2xl lg:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Delete Images</DialogTitle>
+            <DialogDescription className="flex flex-row items-center gap-1">
+              Successfully deleted {deleteMutData.removedFiles.length} images.
+              However, {deleteMutData.failedFiles.length} images failed to
+              delete.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteMutData.failedFiles.length > 0 ? (
+            <ul className="flex flex-col w-full h-48 overflow-auto gap-2 py-4">
+              {deleteMutData.failedFiles.map((failedFile) => {
+                return (
+                  <li
+                    key={failedFile}
+                    className="flex flex-row gap-2 border px-4 py-2.5 text-foreground"
+                  >
+                    {failedFile}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="flex flex-col items-center justify-center w-full h-48 gap-2 py-4">
+              <h3>No failures</h3>
+            </div>
+          )}
 
-        <Alert>
-          <AlertDescription>
-            Deleting images will remove all associated labels. This action
-            cannot be undone.
-          </AlertDescription>
-        </Alert>
-        <DialogFooter>
-          <Button
-            onClick={() => {
-              setIsOpen(false);
-            }}
-            variant="secondary"
-          >
-            Cancel
-          </Button>
-          <Button type="submit" variant="destructive">
-            Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+          <Alert>
+            <AlertDescription>
+              Deleting images will remove all associated labels. This action
+              cannot be undone.
+            </AlertDescription>
+          </Alert>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setIsOpen(false);
+              }}
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={deleteMut.isPending}
+              onClick={() => {
+                deleteMut.mutate(deleteMutData.failedFiles);
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      ) : (
+        <DialogContent className="w-full max-w-xl md:max-w-2xl lg:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Delete Images</DialogTitle>
+            <DialogDescription className="flex flex-row items-center gap-1">
+              Are you sure you want to delete {images.size} images?{" "}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Alert>
+            <AlertDescription>
+              Deleting images will remove all associated labels. This action
+              cannot be undone.
+            </AlertDescription>
+          </Alert>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setIsOpen(false);
+              }}
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={deleteMut.isPending}
+              onClick={() => {
+                deleteMut.mutate(Array.from(images));
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

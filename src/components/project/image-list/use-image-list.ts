@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { appWindow } from "@tauri-apps/api/window";
 import { useDebounce } from "@uidotdev/usehooks";
-import { LabelClassId, RodioProject } from "@/lib/rodio-project";
+import { LabelClassId, RodioImage, RodioProject } from "@/lib/rodio-project";
 import Fuse from "fuse.js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { basename } from "path";
-import { ImagesQueryKey, isKeyStartingWith } from "@/lib/query-keys";
+import { asImagesQK, isKeyStartingWith } from "@/lib/query-keys";
 
 export const LabelFilterModes = [
   {
@@ -32,6 +32,10 @@ export function useImageList(
   project: RodioProject | null,
   options: {
     onFilter?: (filter: ImageListFilter) => void;
+    onFilterImageQueryComplete?: (
+      allImages: RodioImage[],
+      filteredImages: RodioImage[]
+    ) => void;
   }
 ) {
   const [filter, _setFilter] = useState<ImageListFilter>({
@@ -48,15 +52,15 @@ export function useImageList(
   );
   const debouncedFilter = useDebounce(filter, 500);
   const filterImagesQuery = useQuery({
-    queryKey: [
-      ImagesQueryKey,
+    queryKey: asImagesQK(
       project?.projectPath,
-      serializeFilter(debouncedFilter),
-    ],
+      serializeFilter(debouncedFilter)
+    ),
     queryFn: async () => {
       if (!project) return [];
       const filter = debouncedFilter;
       let images = await project.images.getImages(project.projectPath);
+      const allImages = images;
       if (filter.searchString !== "") {
         const fuse = new Fuse(
           images.map((image) => {
@@ -80,6 +84,7 @@ export function useImageList(
           imagesWithLabelClassSet.has(image.path)
         );
       }
+      options.onFilterImageQueryComplete?.(allImages, images);
       return images;
     },
   });
@@ -89,7 +94,8 @@ export function useImageList(
     // We will use the tauri window focus event to refetch the images.
     const unsub = appWindow.listen("tauri://focus", async () => {
       queryClient.invalidateQueries({
-        predicate: (query) => isKeyStartingWith(query.queryKey, ImagesQueryKey),
+        predicate: (query) =>
+          isKeyStartingWith(query.queryKey, asImagesQK(project?.projectPath)),
       });
     });
     return () => {
