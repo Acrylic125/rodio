@@ -75,14 +75,28 @@ export function ImageList() {
   });
   useHotkeys("meta+down", () => {
     if (imagePaths.length === 0 || filterImagesQuery.isFetching) return;
+    const currentSelectedImage = currentProjectStore.selectedImage;
     const currentIndex = imagePaths.findIndex(
-      (image) => image.path === currentProjectStore.selectedImage
+      (image) => image.path === currentSelectedImage
     );
     let nextIndex = 0;
     if (currentIndex !== -1) {
       nextIndex = (currentIndex + 1) % imagePaths.length;
     }
     const imagePath = imagePaths[nextIndex].path;
+
+    setSelectedImages((selectedImages) => {
+      const newSet = new Set(selectedImages);
+      if (currentSelectedImage !== null) {
+        newSet.delete(currentSelectedImage);
+      }
+      newSet.add(imagePath);
+      return newSet;
+    });
+    setMassSelectImages({
+      start: imagePath,
+      end: imagePath,
+    });
 
     rowVirtualizer.scrollToIndex(nextIndex);
     currentProjectStore.selectImage(imagePath);
@@ -91,8 +105,9 @@ export function ImageList() {
   });
   useHotkeys("meta+up", () => {
     if (imagePaths.length === 0 || filterImagesQuery.isFetching) return;
+    const currentSelectedImage = currentProjectStore.selectedImage;
     const currentIndex = imagePaths.findIndex(
-      (image) => image.path === currentProjectStore.selectedImage
+      (image) => image.path === currentSelectedImage
     );
     let nextIndex = 0;
     if (currentIndex !== -1) {
@@ -102,6 +117,19 @@ export function ImageList() {
         imagePaths.length;
     }
     const imagePath = imagePaths[nextIndex].path;
+
+    setSelectedImages((selectedImages) => {
+      const newSet = new Set(selectedImages);
+      if (currentSelectedImage !== null) {
+        newSet.delete(currentSelectedImage);
+      }
+      newSet.add(imagePath);
+      return newSet;
+    });
+    setMassSelectImages({
+      start: imagePath,
+      end: imagePath,
+    });
 
     rowVirtualizer.scrollToIndex(nextIndex);
     currentProjectStore.selectImage(imagePath);
